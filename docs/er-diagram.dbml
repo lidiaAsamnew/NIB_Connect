@@ -1,0 +1,153 @@
+Table User {
+  id varchar [pk]
+  email varchar [unique]
+  passwordHash varchar
+  role varchar
+  isActive boolean
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table StartupProfile {
+  id varchar [pk]
+  userId varchar [unique]
+  businessName varchar
+  sector varchar
+  region varchar
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table SupplierProfile {
+  id varchar [pk]
+  userId varchar [unique]
+  businessName varchar
+  verificationStatus varchar
+  createdAt datetime
+  updatedAt datetime
+}
+
+Ref: StartupProfile.userId - User.id
+Ref: SupplierProfile.userId - User.id
+
+Table Product {
+  id varchar [pk]
+  supplierId varchar
+  name varchar
+  description text
+  price decimal
+  stockQuantity int
+  createdAt datetime
+  updatedAt datetime
+}
+
+Table Voucher {
+  id varchar [pk]
+  startupId varchar
+  amount decimal
+  status varchar
+  allocatedById varchar
+  expiresAt datetime
+  createdAt datetime
+  updatedAt datetime
+}
+
+Ref: Product.supplierId > SupplierProfile.id
+Ref: Voucher.startupId > StartupProfile.id
+Ref: Voucher.allocatedById > User.id
+
+
+Table Order {
+  id varchar [pk]
+  startupId varchar
+  supplierId varchar
+  voucherId varchar [unique]
+  grossAmount decimal
+  discountApplied decimal
+  netAmountToPay decimal
+  status varchar
+  waybillCode varchar [unique]
+  otpSecureHash varchar
+  otpExpiresAt datetime
+  dispatchedAt datetime
+  arrivedAt datetime
+  clearedAt datetime
+  cancelReason text
+  createdAt datetime
+  updatedAt datetime
+}
+
+Ref: Order.startupId > StartupProfile.id
+Ref: Order.supplierId > SupplierProfile.id
+Ref: Order.voucherId - Voucher.id
+
+Table OrderItem {
+  id varchar [pk]
+  orderId varchar
+  productId varchar
+  quantity int
+  unitPrice decimal
+  lineTotal decimal
+  createdAt datetime
+}
+
+Ref: OrderItem.orderId > Order.id
+Ref: OrderItem.productId > Product.id
+
+Table DeliveryHandshake {
+  id varchar [pk]
+  orderId varchar
+  submittedByUserId varchar
+  phoneNumber varchar
+  otpHash varchar
+  ipAddress varchar
+  success boolean
+  message text
+  attemptedAt datetime
+}
+
+Ref: DeliveryHandshake.orderId > Order.id
+Ref: DeliveryHandshake.submittedByUserId > User.id
+
+Table EscrowTransaction {
+  id varchar [pk]
+  orderId varchar
+  voucherId varchar
+  direction varchar
+  amount decimal
+  reference varchar [unique]
+  description text
+  status varchar
+  createdAt datetime
+}
+
+Ref: EscrowTransaction.orderId > Order.id
+Ref: EscrowTransaction.voucherId > Voucher.id
+
+Table AuditLog {
+  id varchar [pk]
+  userId varchar
+  action varchar
+  entityType varchar
+  entityId varchar
+  details text
+  ipAddress varchar
+  createdAt datetime
+}
+
+Ref: AuditLog.userId > User.id
+
+Table Notification {
+  id varchar [pk]
+  userId varchar
+  type varchar
+  title varchar
+  message text
+  isRead boolean
+  createdAt datetime
+}
+
+Ref: Notification.userId > User.id
+
+
+

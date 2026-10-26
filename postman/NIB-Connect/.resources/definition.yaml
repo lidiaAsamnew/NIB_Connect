@@ -1,0 +1,5 @@
+$kind: collection
+description: API testing collection for the NIB-Connect project. Week 1 baseline; endpoints will be tested when the backend is available.
+variables:
+  baseUrl: http://localhost:5000/api
+  token: ""
