@@ -1,0 +1,197 @@
+// server/prisma/schema.prisma
+// STATUS: FULL REWRITE of the existing file
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ---------- ENUMS (fixed lists of allowed values) ----------
+
+enum UserRole {
+  EU_COMPLIANCE_OFFICER
+  NIB_SYSTEM_OPERATOR
+  TIER1_SUPPLIER
+  WOMEN_STARTUP_OWNER
+}
+
+enum VoucherStatus {
+  ALLOCATED
+  COMMITTED_TO_ORDER
+  REDEEMED_AND_SETTLED
+  EXPIRED
+  CANCELLED
+}
+
+enum OrderStatus {
+  PLACED
+  DISPATCHED_IN_TRANSIT
+  DELIVERED_PENDING_HANDSHAKE
+  VERIFIED_AND_CLEARED
+  CANCELLED
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+// ---------- PEOPLE ----------
+
+model User {
+  id          String   @id @default(uuid())
+  phoneNumber String   @unique
+  email       String   @unique
+  fullName    String
+  role        UserRole
+
+  startupProfile    StartupProfile?
+  supplierProfile   SupplierProfile?
+  vouchersAllocated Voucher[]           @relation("VoucherAllocator")
+  handshakes        DeliveryHandshake[]
+}
+
+model StartupProfile {
+  id           String @id @default(uuid())
+  userId       String @unique
+  businessName String
+  sector       String
+  region       String
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vouchers Voucher[]
+  orders   Order[]
+}
+
+model SupplierProfile {
+  id                String  @id @default(uuid())
+  userId            String  @unique
+  companyName       String
+  tinNumber         String  @unique
+  discountRate      Decimal @db.Decimal(5, 2)
+  bankAccountNumber String
+  isVerified        Boolean @default(false)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  products Product[]
+  orders   Order[]
+}
+
+model Product {
+  id            String  @id @default(uuid())
+  supplierId    String
+  name          String
+  price         Decimal @db.Decimal(12, 2)
+  stockQuantity Int
+  isActive      Boolean @default(true)
+
+  supplier   SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  orderItems OrderItem[]
+
+  @@index([supplierId])
+}
+
+// ---------- YOUR CORE TABLES ----------
+
+model Voucher {
+  id            String        @id @default(uuid())
+  startupId     String
+  amount        Decimal       @db.Decimal(12, 2)
+  status        VoucherStatus @default(ALLOCATED)
+  allocatedById String
+  expiresAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  startup            StartupProfile      @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  allocatedBy        User                @relation("VoucherAllocator", fields: [allocatedById], references: [id])
+  committedOrder     Order?
+  escrowTransactions EscrowTransaction[]
+
+  @@index([startupId, status])
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  startupId       String
+  supplierId      String
+  voucherId       String?     @unique
+  grossAmount     Decimal     @db.Decimal(12, 2)
+  discountApplied Decimal     @db.Decimal(12, 2)
+  netAmountToPay  Decimal     @db.Decimal(12, 2)
+  status          OrderStatus @default(PLACED)
+  waybillCode     String?     @unique
+  otpSecureHash   String?
+  otpExpiresAt    DateTime?
+  dispatchedAt    DateTime?
+  arrivedAt       DateTime?
+  clearedAt       DateTime?
+  cancelReason    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  startup  StartupProfile  @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  supplier SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  voucher  Voucher?        @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+
+  items              OrderItem[]
+  handshakes         DeliveryHandshake[]
+  escrowTransactions EscrowTransaction[]
+
+  @@index([startupId])
+  @@index([supplierId])
+  @@index([status])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(12, 2)
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+}
+
+model DeliveryHandshake {
+  id                String   @id @default(uuid())
+  orderId           String
+  submittedByUserId String?
+  phoneNumber       String?
+  otpHash           String
+  ipAddress         String?
+  success           Boolean
+  message           String?
+  attemptedAt       DateTime @default(now())
+
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  submittedBy User? @relation(fields: [submittedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+}
+
+model EscrowTransaction {
+  id          String          @id @default(uuid())
+  orderId     String
+  voucherId   String?
+  direction   LedgerDirection
+  amount      Decimal         @db.Decimal(12, 2)
+  reference   String          @unique
+  description String
+  status      String          @default("SUCCESS")
+  createdAt   DateTime        @default(now())
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  voucher Voucher? @relation(fields: [voucherId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([voucherId])
+}
