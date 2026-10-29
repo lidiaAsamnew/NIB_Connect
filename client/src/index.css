@@ -1,1 +1,17 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-script: "Caveat", cursive;
+  --color-brand: #0e7a5a;
+  --color-brand-dark: #0b5e46;
+  --color-forest: #0a4a38;
+  --color-forest-deep: #07382b;
+  --color-mint: #eaf6f0;
+  --color-mint-deep: #d5eddf;
+}
+
+body {
+  background: #f2f8f5;
+  color: #0f2f26;
+}
