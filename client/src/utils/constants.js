@@ -1,0 +1,3 @@
+export const ROLES = {
+  STARTUP_OWNER: "WOMEN_STARTUP_OWNER",
+};
