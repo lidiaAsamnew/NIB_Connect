@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
-import { PrismaClient, Prisma } from "../generated/prisma/client";
+import { PrismaClient, Prisma } from "../generated/prisma/client.ts";
 import { hashOtp } from "../src/utils/otp.js";
 import { calculateOrderTotals } from "../src/utils/money.js";
 
