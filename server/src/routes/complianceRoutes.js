@@ -12,6 +12,9 @@ import {
   orderStatusReport,
   voucherStatusReport,
   escrowSummary,
+  orders,
+  vouchers,
+  escrowTransactions,
 } from "../controllers/complianceController.js";
 
 const router = Router();
@@ -28,5 +31,8 @@ router.get("/region-report", ...complianceAccess, regionReport);
 router.get("/order-status-report", ...complianceAccess, orderStatusReport);
 router.get("/voucher-status-report", ...complianceAccess, voucherStatusReport);
 router.get("/escrow-summary", ...complianceAccess, escrowSummary);
+router.get("/orders", ...complianceAccess, orders);
+router.get("/vouchers", ...complianceAccess, vouchers);
+router.get("/escrow-transactions", ...complianceAccess, escrowTransactions);
 
 export default router;

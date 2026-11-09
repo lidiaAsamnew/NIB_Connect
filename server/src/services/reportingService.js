@@ -1,5 +1,24 @@
 
 import { prisma } from "../lib/prisma.js";
+import { BadRequestError } from "../utils/errors.js";
+
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const ORDER_STATUSES = [
+  "PLACED",
+  "DISPATCHED_IN_TRANSIT",
+  "DELIVERED_PENDING_HANDSHAKE",
+  "VERIFIED_AND_CLEARED",
+  "CANCELLED",
+];
+const VOUCHER_STATUSES = [
+  "ALLOCATED",
+  "COMMITTED_TO_ORDER",
+  "REDEEMED_AND_SETTLED",
+  "EXPIRED",
+  "CANCELLED",
+];
+const ESCROW_DIRECTIONS = ["DEBIT", "CREDIT"];
 
 // Convert Prisma Decimal values to safe strings.
 function money(value) {
@@ -11,20 +30,28 @@ function buildDateFilter(filters = {}) {
   const createdAt = {};
 
   if (filters.startDate) {
+    if (typeof filters.startDate !== "string") {
+      throw new BadRequestError("Invalid startDate");
+    }
+
     const date = new Date(filters.startDate);
 
     if (Number.isNaN(date.getTime())) {
-      throw new Error("Invalid startDate");
+      throw new BadRequestError("Invalid startDate");
     }
 
     createdAt.gte = date;
   }
 
   if (filters.endDate) {
+    if (typeof filters.endDate !== "string") {
+      throw new BadRequestError("Invalid endDate");
+    }
+
     const date = new Date(filters.endDate);
 
     if (Number.isNaN(date.getTime())) {
-      throw new Error("Invalid endDate");
+      throw new BadRequestError("Invalid endDate");
     }
 
     // Include the entire day when endDate is YYYY-MM-DD.
@@ -33,6 +60,10 @@ function buildDateFilter(filters = {}) {
     }
 
     createdAt.lte = date;
+  }
+
+  if (createdAt.gte && createdAt.lte && createdAt.gte > createdAt.lte) {
+    throw new BadRequestError("startDate must be on or before endDate");
   }
 
   return Object.keys(createdAt).length ? { createdAt } : {};
@@ -51,6 +82,73 @@ function buildOrderWhere(filters = {}) {
           },
         }
       : {}),
+  };
+}
+
+function validateEnumFilter(value, allowedValues, fieldName) {
+  if (value && !allowedValues.includes(value)) {
+    throw new BadRequestError(`Invalid ${fieldName}`);
+  }
+}
+
+function parsePagination(filters = {}) {
+  function parsePositiveInteger(value, name, defaultValue) {
+    if (value === undefined) {
+      return defaultValue;
+    }
+
+    if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) {
+      throw new BadRequestError(`${name} must be a positive integer`);
+    }
+
+    const parsed = Number(value);
+    if (!Number.isSafeInteger(parsed)) {
+      throw new BadRequestError(`${name} must be a safe integer`);
+    }
+
+    return parsed;
+  }
+
+  const page = parsePositiveInteger(filters.page, "page", 1);
+  const pageSize = parsePositiveInteger(
+    filters.pageSize,
+    "pageSize",
+    DEFAULT_PAGE_SIZE
+  );
+
+  if (pageSize > MAX_PAGE_SIZE) {
+    throw new BadRequestError(`pageSize cannot exceed ${MAX_PAGE_SIZE}`);
+  }
+
+  const skip = (page - 1) * pageSize;
+  if (!Number.isSafeInteger(skip)) {
+    throw new BadRequestError("page and pageSize exceed the supported range");
+  }
+
+  return { page, pageSize, skip };
+}
+
+async function getPaginatedRecords(model, where, select, filters = {}) {
+  const { page, pageSize, skip } = parsePagination(filters);
+  const [records, total] = await Promise.all([
+    model.findMany({
+      where,
+      select,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      skip,
+      take: pageSize,
+    }),
+    model.count({ where }),
+  ]);
+
+  return {
+    records,
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    },
   };
 }
 
@@ -300,4 +398,167 @@ export async function getEscrowSummary() {
     transactionCount: group._count.id,
     totalAmount: money(group._sum.amount),
   }));
+}
+
+// 8. Individual order records with their reporting-relevant relationships.
+export async function getOrders(filters = {}) {
+  validateEnumFilter(filters.status, ORDER_STATUSES, "status");
+
+  const where = {
+    ...buildOrderWhere(filters),
+    ...(filters.startupId ? { startupId: filters.startupId } : {}),
+    ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
+    ...(filters.voucherId ? { voucherId: filters.voucherId } : {}),
+  };
+
+  return getPaginatedRecords(
+    prisma.order,
+    where,
+    {
+      id: true,
+      startupId: true,
+      supplierId: true,
+      voucherId: true,
+      grossAmount: true,
+      discountApplied: true,
+      netAmountToPay: true,
+      status: true,
+      dispatchedAt: true,
+      arrivedAt: true,
+      clearedAt: true,
+      createdAt: true,
+      updatedAt: true,
+      startup: {
+        select: {
+          businessName: true,
+          sector: true,
+          region: true,
+        },
+      },
+      supplier: {
+        select: {
+          companyName: true,
+        },
+      },
+      voucher: {
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+        },
+      },
+      items: {
+        select: {
+          id: true,
+          quantity: true,
+          unitPrice: true,
+          lineTotal: true,
+          product: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      },
+    },
+    filters
+  );
+}
+
+// 9. Individual voucher records with their startup and committed order.
+export async function getVouchers(filters = {}) {
+  validateEnumFilter(filters.status, VOUCHER_STATUSES, "status");
+
+  const where = {
+    ...buildDateFilter(filters),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.startupId ? { startupId: filters.startupId } : {}),
+    ...(filters.allocatedById ? { allocatedById: filters.allocatedById } : {}),
+  };
+
+  return getPaginatedRecords(
+    prisma.voucher,
+    where,
+    {
+      id: true,
+      startupId: true,
+      amount: true,
+      status: true,
+      allocatedById: true,
+      expiresAt: true,
+      createdAt: true,
+      updatedAt: true,
+      startup: {
+        select: {
+          businessName: true,
+          sector: true,
+          region: true,
+        },
+      },
+      committedOrder: {
+        select: {
+          id: true,
+          status: true,
+          netAmountToPay: true,
+        },
+      },
+    },
+    filters
+  );
+}
+
+// 10. Individual escrow transaction records with related order and voucher.
+export async function getEscrowTransactions(filters = {}) {
+  validateEnumFilter(filters.direction, ESCROW_DIRECTIONS, "direction");
+
+  const where = {
+    ...buildDateFilter(filters),
+    ...(filters.direction ? { direction: filters.direction } : {}),
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.orderId ? { orderId: filters.orderId } : {}),
+    ...(filters.voucherId ? { voucherId: filters.voucherId } : {}),
+  };
+
+  return getPaginatedRecords(
+    prisma.escrowTransaction,
+    where,
+    {
+      id: true,
+      orderId: true,
+      voucherId: true,
+      direction: true,
+      amount: true,
+      reference: true,
+      description: true,
+      status: true,
+      createdAt: true,
+      order: {
+        select: {
+          id: true,
+          status: true,
+          startup: {
+            select: {
+              businessName: true,
+              sector: true,
+              region: true,
+            },
+          },
+          supplier: {
+            select: {
+              companyName: true,
+            },
+          },
+        },
+      },
+      voucher: {
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+        },
+      },
+    },
+    filters
+  );
 }
