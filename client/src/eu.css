@@ -1,0 +1,253 @@
+:root {
+  font-family: "Segoe UI", sans-serif;
+  color: #182b36;
+  background: #f2f6f4;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+button {
+  font: inherit;
+}
+
+.eu-shell {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f3f7f5 0%, #edf3f1 56%, #f7f8f2 100%);
+}
+
+.eu-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 74px;
+  padding: 0 clamp(20px, 5vw, 72px);
+  color: #f7fbf9;
+  background: #173a42;
+  border-bottom: 4px solid #a7ce74;
+}
+
+.eu-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.eu-brand small {
+  display: block;
+  margin-top: 3px;
+  color: #b8d5c9;
+  font-size: 9px;
+  letter-spacing: 1.2px;
+}
+
+.eu-brand-mark {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  color: #173a42;
+  background: #b7dc84;
+  border-radius: 4px;
+  font-family: Georgia, serif;
+  font-size: 21px;
+}
+
+.eu-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.eu-nav-link {
+  padding: 10px 12px;
+  color: #d3e2dd;
+  border-radius: 3px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.eu-nav-link:hover,
+.eu-nav-link.is-active {
+  color: #fff;
+  background: #285660;
+}
+
+.eu-main {
+  width: min(1200px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 28px 0 56px;
+}
+
+.eu-page-heading {
+  margin-bottom: 24px;
+}
+
+.eu-eyebrow {
+  margin: 0 0 8px;
+  color: #53836a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+}
+
+.eu-page-heading h1 {
+  margin: 0;
+  color: #183840;
+  font-family: Georgia, serif;
+  font-size: clamp(27px, 4vw, 36px);
+  font-weight: 500;
+}
+
+.eu-description {
+  margin: 9px 0 0;
+  color: #647772;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.eu-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 12px;
+}
+
+.eu-summary-card {
+  display: flex;
+  min-height: 127px;
+  flex-direction: column;
+  padding: 17px;
+  background: #fff;
+  border: 1px solid #dfe8e4;
+  border-top: 3px solid #53836a;
+  border-radius: 4px;
+}
+
+.eu-summary-card p,
+.eu-summary-card span {
+  margin: 0;
+  color: #647772;
+  font-size: 12px;
+}
+
+.eu-summary-card strong {
+  margin: 12px 0 7px;
+  color: #183840;
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+}
+
+.eu-state {
+  padding: 28px 18px;
+  color: #536961;
+  background: #fff;
+  border: 1px solid #dfe8e4;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.eu-state-error {
+  display: grid;
+  gap: 7px;
+  color: #783f36;
+  background: #fff8f5;
+  border-color: #e8c9bf;
+}
+
+.eu-table-wrap {
+  overflow-x: auto;
+  background: #fff;
+  border: 1px solid #dfe8e4;
+  border-radius: 4px;
+}
+
+.eu-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.eu-table th,
+.eu-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e8eeeb;
+  font-size: 13px;
+}
+
+.eu-table th {
+  color: #48635a;
+  background: #f1f6f2;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.eu-table td {
+  color: #354b46;
+}
+
+.eu-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.eu-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  color: #647772;
+  font-size: 13px;
+}
+
+.eu-pagination div {
+  display: flex;
+  gap: 8px;
+}
+
+.eu-pagination button {
+  padding: 8px 12px;
+  color: #244b46;
+  background: #fff;
+  border: 1px solid #cbd9d2;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.eu-pagination button:disabled {
+  color: #9baaa3;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  .eu-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 16px;
+    padding-bottom: 12px;
+  }
+
+  .eu-navigation {
+    justify-content: flex-start;
+  }
+
+  .eu-nav-link {
+    padding: 8px;
+    font-size: 12px;
+  }
+}
