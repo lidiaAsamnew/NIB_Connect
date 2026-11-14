@@ -1,0 +1,224 @@
+.w2-page {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+  max-width: 1100px;
+  min-width: 0;
+  margin: 0 auto;
+  color: #12352a;
+}
+
+.w2-page-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-height: 92px;
+}
+
+.w2-page-heading { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.w2-page-heading > div { min-width: 0; }
+.w2-page-heading h1 { font-size: clamp(1.25rem, 1.7vw, 1.65rem); font-weight: 700; line-height: 1.35; }
+.w2-page-heading p { max-width: 65ch; margin-top: 6px; font-size: 14px; line-height: 1.65; color: #35594b; }
+.w2-heading-art, .w2-heading-icon { flex: none; width: 76px; height: 76px; }
+.w2-heading-art { object-fit: contain; }
+.w2-heading-icon { display: grid; place-items: center; border-radius: 50%; background: #daf3e5; color: var(--color-brand); }
+.w2-heading-icon svg { width: 36px; height: 36px; }
+.w2-page-header--illustrated { min-height: 178px; padding-right: 280px; }
+.w2-owner-art { position: absolute; right: 0; bottom: -22px; width: 295px; height: 205px; object-fit: contain; object-position: bottom right; pointer-events: none; }
+
+.w2-panel { min-width: 0; border: 1px solid #e4eee9; border-radius: 16px; background: #fff; box-shadow: 0 2px 9px rgb(10 74 56 / 5%); }
+.w2-panel h2, .w2-voucher-rules h2 { font-size: 17px; font-weight: 700; line-height: 1.45; }
+.w2-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px; border: 1px solid transparent; border-radius: 9px; padding: 10px 20px; background: var(--color-brand); color: #fff; font-size: 14px; font-weight: 600; line-height: 1.4; cursor: pointer; }
+.w2-button:hover { background: var(--color-brand-dark); }
+.w2-button svg { flex: none; width: 18px; height: 18px; }
+.w2-button:focus-visible, .w2-toast button:focus-visible { outline: 3px solid var(--color-brand); outline-offset: 3px; }
+.w2-button:disabled { opacity: .65; cursor: wait; }
+.w2-button--secondary { border-color: var(--color-brand); background: #fff; color: var(--color-brand); }
+.w2-button--secondary:hover { background: #eef9f3; }
+
+.w2-profile-form { position: relative; overflow: hidden; padding: 26px; }
+.w2-profile-form h2 { position: relative; margin-bottom: 22px; }
+.w2-profile-form form { position: relative; z-index: 1; }
+.w2-profile-form fieldset { min-width: 0; margin: 0; border: 0; padding: 0; }
+.w2-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+.w2-description-field { grid-column: 1 / -1; }
+.w2-description-field label { display: block; margin-bottom: 7px; color: var(--color-forest); font-size: 14px; font-weight: 600; }
+.w2-description-field label span { font-weight: 400; }
+.w2-description-field textarea { display: block; width: 100%; min-height: 100px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; color: #12352a; background: #fff; font-size: 14px; line-height: 1.65; resize: vertical; }
+.w2-description-field textarea:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 1px; }
+.w2-description-field textarea:disabled { color: #64748b; background: #f8fbf9; }
+.w2-character-count { margin-top: 4px; text-align: right; color: #49665b; font-size: 12px; }
+.w2-field-note { margin-top: 4px; color: #49665b; font-size: 12px; }
+.w2-validation-error { margin-top: 4px; font-size: 14px; color: #b91c1c; }
+.w2-form-error { margin-bottom: 18px; border-radius: 8px; padding: 12px; background: #fef2f2; color: #991b1b; font-size: 14px; }
+.w2-form-actions { display: flex; gap: 12px; margin-top: 24px; margin-left: 70px; }
+.w2-save-button { flex: 1; }
+.w2-leaf-accent { position: absolute; right: -7px; bottom: -14px; width: 120px; height: 140px; color: #29a967; opacity: .2; pointer-events: none; }
+.w2-profile-form > .w2-leaf-accent { right: auto; left: -28px; }
+
+.w2-profile-summary { display: grid; grid-template-columns: 180px minmax(0, 1fr); align-items: center; gap: 30px; padding: 28px; }
+.w2-profile-summary:has(.w2-profile-description) { grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr); }
+.w2-profile-art { width: 180px; aspect-ratio: 1; object-fit: contain; }
+.w2-profile-facts { display: grid; gap: 18px; min-width: 0; }
+.w2-profile-facts dt { font-size: 13px; color: #36594b; }
+.w2-profile-facts dd { display: flex; align-items: flex-start; gap: 10px; margin-top: 6px; font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; }
+.w2-profile-facts dd svg { flex: none; width: 21px; height: 21px; margin-top: 2px; color: var(--color-brand); }
+.w2-profile-facts .w2-business-name { display: block; font-weight: 700; }
+.w2-profile-description { align-self: stretch; border-left: 1px solid #dbe7e0; padding-left: 26px; }
+.w2-profile-description h2 { font-size: 13px; font-weight: 400; color: #36594b; }
+.w2-profile-description p { margin-top: 8px; font-size: 14px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.w2-profile-status { position: relative; overflow: hidden; padding: 22px 26px; }
+.w2-completion-message { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; margin-top: 12px; border-radius: 10px; padding: 14px; background: #e6f8ee; color: #076443; font-size: 14px; font-weight: 500; }
+.w2-completion-message svg { flex: none; width: 23px; height: 23px; }
+.w2-completion-message--incomplete { background: #fff6e6; color: #854d0e; }
+.w2-profile-status h3 { position: relative; margin-top: 20px; font-size: 14px; font-weight: 600; }
+.w2-profile-status > p:last-of-type { position: relative; margin-top: 5px; font-size: 13px; color: #36594b; }
+
+.w2-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.w2-summary-card { display: flex; align-items: center; gap: 14px; padding: 18px; }
+.w2-summary-card > div { min-width: 0; }
+.w2-summary-icon { display: grid; flex: none; place-items: center; width: 58px; height: 58px; border-radius: 17px; color: #078353; background: #ddf8e9; }
+.w2-summary-icon svg { width: 32px; height: 32px; }
+.w2-summary-card--committed .w2-summary-icon { color: #b45309; background: #fff0d1; }
+.w2-summary-card--settled .w2-summary-icon { color: #1d6ac6; background: #dcedff; }
+.w2-summary-number { font-size: 28px; font-weight: 700; line-height: 1.15; }
+.w2-summary-card h2 { margin-top: 3px; font-size: 14px; font-weight: 600; }
+.w2-summary-caption { margin-top: 3px; color: #49675b; font-size: 11px; line-height: 1.5; }
+.w2-voucher-list { display: grid; gap: 16px; }
+.w2-voucher-card { display: grid; grid-template-columns: 172px minmax(0, 1fr); gap: 24px; padding: 22px; }
+.w2-voucher-art { display: grid; place-items: center; min-height: 150px; overflow: hidden; border-radius: 14px; background: #eafaf1; }
+.w2-gift-ticket { display: grid; place-items: center; width: 137px; height: 106px; border-radius: 12px; background: #c6f0da; color: #00724e; box-shadow: 0 7px 0 #a9dfc1; transform: rotate(-13deg); }
+.w2-gift-ticket svg { width: 83px; height: 83px; }
+.w2-voucher-content { min-width: 0; }
+.w2-voucher-facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .85fr) minmax(0, 1.2fr); gap: 16px; }
+.w2-voucher-facts dt { margin-bottom: 7px; color: #36594b; font-size: 12px; }
+.w2-voucher-facts dd { font-size: 17px; font-weight: 700; line-height: 1.6; overflow-wrap: anywhere; }
+.w2-voucher-facts dd > span { max-width: 100%; vertical-align: middle; }
+.w2-expired-badge { display: inline-block; margin-left: 5px; border-radius: 20px; padding: 4px 9px; color: #991b1b; background: #fee2e2; font-size: 12px; font-weight: 600; }
+.w2-voucher-card--expired .w2-voucher-art { background: #f3f6f4; }
+.w2-voucher-card--expired .w2-gift-ticket { filter: grayscale(.7); opacity: .7; }
+.w2-voucher-dates { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 18px; border-top: 1px solid #eaf0ed; padding-top: 14px; }
+.w2-voucher-dates p { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; font-weight: 500; color: #36594b; }
+.w2-voucher-dates svg { flex: none; width: 17px; height: 17px; }
+.w2-voucher-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; }
+.w2-availability { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; line-height: 1.65; color: #5f5547; }
+.w2-availability svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+.w2-availability--usable { color: #087046; }
+.w2-details-button { flex: none; border-radius: 24px; padding: 10px 16px; font-size: 12px; }
+.w2-voucher-details { margin-top: 18px; border-top: 1px solid #e4eee9; padding-top: 16px; color: #36594b; font-size: 13px; line-height: 1.8; }
+.w2-voucher-details h3 { margin-bottom: 5px; color: #12352a; font-weight: 600; }
+.w2-status-value { overflow-wrap: anywhere; }
+.w2-voucher-rules { position: relative; display: flex; align-items: flex-start; gap: 16px; overflow: hidden; border: 1px solid #faebcf; border-radius: 14px; padding: 22px; background: #fff6e7; }
+.w2-voucher-rules > div { position: relative; z-index: 1; min-width: 0; }
+.w2-rules-icon { flex: none; width: 27px; height: 27px; color: #d58913; }
+.w2-voucher-rules ul { display: grid; gap: 7px; margin-top: 9px; }
+.w2-voucher-rules li { display: flex; align-items: flex-start; gap: 9px; font-size: 12px; line-height: 1.65; }
+.w2-voucher-rules li svg { flex: none; width: 17px; height: 17px; margin-top: 1px; color: #087749; }
+.w2-voucher-rules strong { font-weight: 600; overflow-wrap: anywhere; }
+.w2-voucher-rules .w2-leaf-accent { opacity: .12; }
+
+.w2-empty-state { display: grid; justify-items: center; gap: 16px; padding: 46px 24px; text-align: center; }
+.w2-empty-state p { max-width: 58ch; color: #49665b; font-size: 14px; line-height: 1.8; }
+.w2-state-icon { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: #e1f6e9; color: var(--color-brand); }
+.w2-state-icon svg { width: 37px; height: 37px; }
+.w2-state-icon--error { color: #b91c1c; background: #fef2f2; }
+.w2-profile-skeleton { display: flex; align-items: center; gap: 30px; padding: 32px; }
+.w2-skeleton { display: block; width: 100%; height: 17px; border-radius: 7px; background: #e5efea; animation: w2-pulse 1.5s ease-in-out infinite alternate; }
+.w2-skeleton--circle { flex: none; width: 130px; height: 130px; border-radius: 50%; }
+.w2-skeleton--heading { height: 25px; }
+.w2-skeleton--short { width: 65%; }
+.w2-skeleton-lines { display: grid; flex: 1; gap: 22px; min-width: 0; }
+.w2-skeleton-stat { display: flex; align-items: center; gap: 14px; padding: 22px; }
+.w2-skeleton-stat .w2-skeleton--circle { width: 54px; height: 54px; }
+[aria-label="Loading vouchers"] > .w2-panel { margin-top: 20px; }
+.w2-spin { animation: w2-spin 1s linear infinite; }
+
+.w2-toast { position: fixed; top: 20px; right: 20px; z-index: 60; display: grid; grid-template-columns: 23px minmax(0, 1fr) 44px; align-items: center; gap: 10px; width: min(430px, calc(100vw - 32px)); border: 1px solid #b6e2c9; border-radius: 12px; padding: 12px 12px 12px 16px; background: #effbf4; color: #076443; box-shadow: 0 8px 25px rgb(10 74 56 / 12%); }
+.w2-toast--error { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+.w2-toast > svg { width: 23px; height: 23px; }
+.w2-toast p { font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.w2-toast button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 7px; cursor: pointer; }
+.w2-toast button svg { width: 19px; height: 19px; }
+
+.w2-access-page { position: relative; display: grid; align-content: center; justify-items: center; gap: 28px; min-height: 100svh; padding: 40px 20px; background: radial-gradient(ellipse at 0 100%, #c6efdb 0%, transparent 45%), radial-gradient(ellipse at 100% 0, #d4f1e4 0%, transparent 42%), #f0fbf5; }
+.w2-access-brand { position: relative; }
+.w2-page .w2-access-page { min-height: 65svh; border-radius: 16px; }
+.w2-access-card { display: grid; justify-items: center; gap: 24px; width: 100%; max-width: 520px; padding: 46px 32px; text-align: center; }
+.w2-access-card h1 { font-size: clamp(24px, 4vw, 30px); font-weight: 700; color: #102f27; }
+.w2-access-card p { max-width: 38ch; color: #36594b; font-size: 14px; line-height: 1.8; }
+.w2-lock-art { position: relative; display: block; width: 104px; height: 112px; }
+.w2-lock-art svg:first-child { width: 104px; height: 112px; fill: var(--color-brand); stroke: var(--color-brand); stroke-width: 1; }
+.w2-lock-art svg:last-child { position: absolute; top: 33px; left: 32px; width: 40px; height: 40px; color: #fff; }
+
+@keyframes w2-pulse { to { opacity: .45; } }
+@keyframes w2-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1100px) {
+  .w2-profile-summary:has(.w2-profile-description) { grid-template-columns: 140px minmax(0, 1fr); }
+  .w2-profile-summary { grid-template-columns: 140px minmax(0, 1fr); gap: 24px; }
+  .w2-profile-art { width: 140px; }
+  .w2-profile-description { grid-column: 1 / -1; border-top: 1px solid #dbe7e0; border-left: 0; padding-top: 18px; padding-left: 0; }
+  .w2-summary-card { gap: 10px; padding: 15px; }
+  .w2-summary-icon { width: 46px; height: 46px; }
+  .w2-summary-icon svg { width: 27px; height: 27px; }
+  .w2-voucher-card { grid-template-columns: 132px minmax(0, 1fr); gap: 18px; padding: 18px; }
+  .w2-gift-ticket { width: 106px; height: 90px; }
+  .w2-gift-ticket svg { width: 68px; height: 68px; }
+  .w2-voucher-facts { gap: 10px; }
+}
+
+@media (max-width: 700px) {
+  .w2-page-header--illustrated { min-height: 125px; padding-right: 180px; }
+  .w2-owner-art { width: 195px; height: 145px; }
+  .w2-summary-grid { gap: 10px; }
+  .w2-summary-card { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .w2-summary-number { font-size: 25px; }
+}
+
+@media (max-width: 640px) {
+  .w2-page { gap: 16px; }
+  .w2-page-header { gap: 12px; min-height: 80px; }
+  .w2-page-header--illustrated { min-height: 95px; padding-right: 0; }
+  .w2-owner-art { display: none; }
+  .w2-page-heading { gap: 12px; }
+  .w2-heading-art, .w2-heading-icon { width: 56px; height: 56px; }
+  .w2-heading-icon svg { width: 28px; height: 28px; }
+  .w2-page-heading p { font-size: 12px; }
+  .w2-page-header > .w2-button { width: 100%; }
+  .w2-profile-form { padding: 20px 16px; }
+  .w2-form-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .w2-form-actions { flex-direction: column-reverse; margin-left: 0; }
+  .w2-form-actions .w2-button { width: 100%; }
+  .w2-profile-summary, .w2-profile-summary:has(.w2-profile-description) { grid-template-columns: minmax(0, 1fr); justify-items: center; gap: 22px; padding: 22px 20px; }
+  .w2-profile-art { width: 132px; }
+  .w2-profile-facts, .w2-profile-description { width: 100%; }
+  .w2-profile-status { padding: 20px 16px; }
+  .w2-completion-message { font-size: 13px; }
+  .w2-summary-card { align-items: center; padding: 14px 7px; text-align: center; }
+  .w2-summary-card h2 { font-size: 12px; }
+  .w2-summary-caption { font-size: 10px; }
+  .w2-voucher-card { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 16px; }
+  .w2-voucher-art { min-height: 120px; }
+  .w2-voucher-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .w2-voucher-facts > div:last-child { grid-column: 1 / -1; }
+  .w2-voucher-facts dd { font-size: 16px; }
+  .w2-voucher-footer { align-items: stretch; flex-direction: column; }
+  .w2-voucher-dates { gap: 12px; }
+  .w2-voucher-rules { gap: 10px; padding: 18px 14px; }
+  .w2-rules-icon { width: 23px; height: 23px; }
+  .w2-voucher-rules h2 { font-size: 16px; }
+  .w2-voucher-rules li { font-size: 11px; }
+  .w2-profile-skeleton { gap: 18px; padding: 22px; }
+  .w2-skeleton--circle { width: 70px; height: 70px; }
+  .w2-skeleton-stat { justify-content: center; padding: 16px 10px; }
+  .w2-skeleton-stat .w2-skeleton--circle { display: none; }
+  .w2-toast { top: 12px; right: 16px; }
+  .w2-access-card { padding: 32px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .w2-skeleton, .w2-spin { animation: none; }
+}
