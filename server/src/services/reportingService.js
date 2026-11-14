@@ -1,5 +1,6 @@
 
 import { prisma } from "../lib/prisma.js";
+import { Prisma } from "../../generated/prisma/client.ts";
 import { BadRequestError } from "../utils/errors.js";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -22,7 +23,13 @@ const ESCROW_DIRECTIONS = ["DEBIT", "CREDIT"];
 
 // Convert Prisma Decimal values to safe strings.
 function money(value) {
-  return Number(value ?? 0).toFixed(2);
+  if (value == null) return "0.00";
+
+  if (typeof value.toFixed === "function") {
+    return value.toFixed(2);
+  }
+
+  return Number(value).toFixed(2);
 }
 
 // Validate optional date filters.
@@ -152,19 +159,6 @@ async function getPaginatedRecords(model, where, select, filters = {}) {
   };
 }
 
-// Monday of the ISO reporting week (UTC).
-function getWeekStart(date) {
-  const result = new Date(date);
-  result.setUTCHours(0, 0, 0, 0);
-
-  const day = result.getUTCDay();
-  const daysSinceMonday = (day + 6) % 7;
-
-  result.setUTCDate(result.getUTCDate() - daysSinceMonday);
-
-  return result.toISOString().slice(0, 10);
-}
-
 // Add monetary values without floating-point arithmetic.
 function addMoney(current, value) {
   const toCents = (amount) => {
@@ -180,100 +174,125 @@ function addMoney(current, value) {
 // 1. Overall compliance dashboard summary.
 export async function getComplianceSummary() {
   const [
-    totalOrders,
-    clearedOrders,
-    pendingOrders,
-    totalVoucherValue,
+    totalStartups,
+    totalSuppliers,
+    verifiedSuppliers,
     totalVouchers,
+    voucherGroups,
+    totalOrders,
+    orderGroups,
+    orderImpact,
+    clearedImpact,
   ] = await Promise.all([
-    prisma.order.count(),
-    prisma.order.count({
-      where: { status: "VERIFIED_AND_CLEARED" },
-    }),
-    prisma.order.count({
-      where: {
-        status: {
-          notIn: ["VERIFIED_AND_CLEARED", "CANCELLED"],
-        },
-      },
-    }),
-    prisma.voucher.aggregate({
+    prisma.startupProfile.count(),
+    prisma.supplierProfile.count(),
+    prisma.supplierProfile.count({ where: { isVerified: true } }),
+    prisma.voucher.count(),
+    prisma.voucher.groupBy({
+      by: ["status"],
       _sum: { amount: true },
     }),
-    prisma.voucher.count(),
+    prisma.order.count(),
+    prisma.order.groupBy({
+      by: ["status"],
+      _count: { id: true },
+    }),
+    prisma.order.aggregate({
+      _sum: {
+        grossAmount: true,
+        discountApplied: true,
+      },
+    }),
+    prisma.order.aggregate({
+      where: { status: "VERIFIED_AND_CLEARED" },
+      _sum: { netAmountToPay: true },
+    }),
   ]);
 
+  const voucherValues = {
+    allocatedValue: "0.00",
+    committedValue: "0.00",
+    settledValue: "0.00",
+  };
+
+  for (const group of voucherGroups) {
+    if (group.status === "ALLOCATED") {
+      voucherValues.allocatedValue = money(group._sum.amount);
+    }
+    if (group.status === "COMMITTED_TO_ORDER") {
+      voucherValues.committedValue = money(group._sum.amount);
+    }
+    if (group.status === "REDEEMED_AND_SETTLED") {
+      voucherValues.settledValue = money(group._sum.amount);
+    }
+  }
+
+  const orders = {
+    total: totalOrders,
+    PLACED: 0,
+    DISPATCHED_IN_TRANSIT: 0,
+    DELIVERED_PENDING_HANDSHAKE: 0,
+    VERIFIED_AND_CLEARED: 0,
+  };
+
+  for (const group of orderGroups) {
+    if (Object.hasOwn(orders, group.status)) {
+      orders[group.status] = group._count.id;
+    }
+  }
+
   return {
-    totalOrders,
-    clearedOrders,
-    pendingOrders,
+    startups: totalStartups,
+    suppliers: totalSuppliers,
+    verifiedSuppliers,
     totalVouchers,
-    totalVoucherValue: money(totalVoucherValue._sum.amount),
+    vouchers: voucherValues,
+    orders,
+    impact: {
+      grossValue: money(orderImpact._sum.grossAmount),
+      savings: money(orderImpact._sum.discountApplied),
+      clearedValue: money(clearedImpact._sum.netAmountToPay),
+    },
   };
 }
 
 // 2. Weekly allocation stream grouped by reporting week and sector.
 export async function getWeeklyAllocationStream(filters = {}) {
-  const orders = await prisma.order.findMany({
-    where: buildOrderWhere(filters),
-    select: {
-      id: true,
-      createdAt: true,
-      status: true,
-      grossAmount: true,
-      discountApplied: true,
-      netAmountToPay: true,
-      startup: {
-        select: {
-          sector: true,
-          region: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const dateFilter = buildDateFilter(filters).createdAt;
+  const conditions = [];
 
-  const groups = new Map();
-
-  for (const order of orders) {
-    const weekStart = getWeekStart(order.createdAt);
-    const sector = order.startup.sector;
-    const key = `${weekStart}|${sector}`;
-
-    if (!groups.has(key)) {
-      groups.set(key, {
-        weekStart,
-        sector,
-        orderCount: 0,
-        grossVoucherValue: "0.00",
-        socioeconomicSavings: "0.00",
-        clearedAmount: "0.00",
-      });
-    }
-
-    const group = groups.get(key);
-
-    group.orderCount += 1;
-    group.grossVoucherValue = addMoney(
-      group.grossVoucherValue,
-      order.grossAmount
-    );
-    group.socioeconomicSavings = addMoney(
-      group.socioeconomicSavings,
-      order.discountApplied
-    );
-
-    if (order.status === "VERIFIED_AND_CLEARED") {
-      group.clearedAmount = addMoney(
-        group.clearedAmount,
-        order.netAmountToPay
-      );
-    }
+  if (dateFilter?.gte) {
+    conditions.push(Prisma.sql`o.createdAt >= ${dateFilter.gte}`);
+  }
+  if (dateFilter?.lte) {
+    conditions.push(Prisma.sql`o.createdAt <= ${dateFilter.lte}`);
   }
 
-  return Array.from(groups.values()).sort((a, b) =>
-    a.weekStart.localeCompare(b.weekStart)
-  );
+  const whereClause = conditions.length
+    ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`
+    : Prisma.empty;
+
+  const rows = await prisma.$queryRaw(Prisma.sql`
+    SELECT
+      DATE_FORMAT(o.createdAt, '%Y-%u') AS euReportingWeek,
+      sp.sector AS marketSector,
+      SUM(o.grossAmount) AS grossVoucherValueETB,
+      SUM(o.discountApplied) AS socioEconomicSavingsETB,
+      SUM(CASE WHEN o.status = 'VERIFIED_AND_CLEARED' THEN o.netAmountToPay ELSE 0 END) AS clearedETB
+    FROM \`Order\` o
+    JOIN StartupProfile sp ON o.startupId = sp.id
+    ${whereClause}
+    GROUP BY DATE_FORMAT(o.createdAt, '%Y-%u'), sp.sector
+    ORDER BY euReportingWeek ASC
+  `);
+
+  return rows.map((row) => ({
+    euReportingWeek: row.euReportingWeek,
+    marketSector: row.marketSector,
+    grossVoucherValueETB: money(row.grossVoucherValueETB),
+    socioEconomicSavingsETB: money(row.socioEconomicSavingsETB),
+    clearedETB: money(row.clearedETB),
+  }));
 }
 
 // Shared grouping logic for sector and region reports.
@@ -281,6 +300,7 @@ async function getGroupedOrderReport(groupField, filters = {}) {
   const orders = await prisma.order.findMany({
     where: buildOrderWhere(filters),
     select: {
+      startupId: true,
       grossAmount: true,
       discountApplied: true,
       netAmountToPay: true,
@@ -302,33 +322,41 @@ async function getGroupedOrderReport(groupField, filters = {}) {
     if (!groups.has(name)) {
       groups.set(name, {
         [groupField]: name,
-        orderCount: 0,
+        totalOrders: 0,
         clearedOrders: 0,
-        grossAmount: "0.00",
-        socioeconomicSavings: "0.00",
-        clearedAmount: "0.00",
+        grossValue: "0.00",
+        savings: "0.00",
+        clearedValue: "0.00",
+        startupIds: new Set(),
       });
     }
 
     const group = groups.get(name);
 
-    group.orderCount += 1;
-    group.grossAmount = addMoney(group.grossAmount, order.grossAmount);
-    group.socioeconomicSavings = addMoney(
-      group.socioeconomicSavings,
-      order.discountApplied
-    );
+    group.totalOrders += 1;
+    group.startupIds.add(order.startupId);
+    group.grossValue = addMoney(group.grossValue, order.grossAmount);
+    group.savings = addMoney(group.savings, order.discountApplied);
 
     if (order.status === "VERIFIED_AND_CLEARED") {
       group.clearedOrders += 1;
-      group.clearedAmount = addMoney(
-        group.clearedAmount,
+      group.clearedValue = addMoney(
+        group.clearedValue,
         order.netAmountToPay
       );
     }
   }
 
-  return Array.from(groups.values());
+  return Array.from(groups.values()).map((group) => {
+    const result = { ...group };
+
+    if (groupField === "region") {
+      result.totalStartups = group.startupIds.size;
+    }
+
+    delete result.startupIds;
+    return result;
+  });
 }
 
 // 3. Report grouped by market sector.

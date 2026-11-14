@@ -235,3 +235,45 @@ Deployment and final verification will be completed after the team modules are i
 - Compliance reporting and testing will be finalized after the backend data and team modules are integrated.
 
 
+
+## EU Compliance Reporting (Week 2)
+
+The EU Compliance module provides read-only reporting APIs and dashboard pages.
+
+### Backend reporting endpoints
+
+All endpoints require a valid Bearer JWT and an authorized role:
+`EU_COMPLIANCE_OFFICER` or `NIB_SYSTEM_OPERATOR`.
+
+| Method | Endpoint |
+|---|---|
+| GET | `/api/compliance/summary` |
+| GET | `/api/compliance/weekly-allocation-stream` |
+| GET | `/api/compliance/sector-report` |
+| GET | `/api/compliance/region-report` |
+| GET | `/api/compliance/vouchers` |
+| GET | `/api/compliance/orders` |
+| GET | `/api/compliance/escrow-transactions` |
+
+These endpoints are read-only.
+
+### Frontend pages
+
+- `/compliance`
+- `/compliance/summary`
+- `/compliance/weekly-stream`
+- `/compliance/sector-report`
+- `/compliance/region-report`
+- `/compliance/orders`
+
+### Automated tests
+
+Run backend tests from the `server` directory:
+
+    npm test
+
+### Documentation and Postman
+
+- Access control: `docs/eu-compliance-access-control.md`
+- Postman requests: `postman/NIB-Connect/Compliance/`
+- Set the Postman `token` variable to a valid authorized JWT before testing.

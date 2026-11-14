@@ -1,5 +1,5 @@
 $kind: collection
-description: API testing collection for the NIB-Connect project. Week 1 baseline; endpoints will be tested when the backend is available.
+description: NIB-Connect API testing collection, including Week 1 baseline and Week 2 EU Compliance read-only reporting APIs.
 variables:
   baseUrl: http://localhost:5000/api
   token: ""
