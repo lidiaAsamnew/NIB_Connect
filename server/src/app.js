@@ -5,6 +5,8 @@ const { rateLimit } = require("express-rate-limit");
 const { createAuthRouter } = require("./routes/authRoutes");
 const { createAuditRouter } = require("./routes/auditRoutes");
 const { createOperatorRouter } = require("./routes/operatorRoutes");
+const { createOperationsRouter } = require("./routes/operationsRoutes");
+const { createProductRouter } = require("./routes/productRoutes");
 const { createSecurityEventRouter } = require("./routes/securityEventRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
 const { createVoucherRouter } = require("./routes/voucherRoutes");
@@ -39,7 +41,7 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
   app.use(helmet());
   app.use(cors({
     origin: clientOrigin,
-    methods: ["GET", "POST", "OPTIONS"],
+    methods: ["GET", "POST", "PATCH", "OPTIONS"],
   }));
   app.use(express.json({ limit: "10kb" }));
 
@@ -72,6 +74,8 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
   app.use("/api/auth", createAuthRouter({ prisma, jwtSecret, jwtExpiresIn }));
   app.use("/api/users", createUserRouter({ prisma, jwtSecret }));
   app.use("/api/operator", createOperatorRouter({ prisma, jwtSecret }));
+  app.use("/api/ops", createOperationsRouter({ prisma, jwtSecret }));
+  app.use("/api/products", createProductRouter({ prisma, jwtSecret }));
   app.use("/api/audit-logs", createAuditRouter({ prisma, jwtSecret }));
   app.use("/api/security-events", createSecurityEventRouter({ prisma, jwtSecret }));
   app.use("/api/vouchers", createVoucherRouter({ prisma, jwtSecret }));

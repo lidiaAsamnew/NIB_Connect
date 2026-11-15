@@ -1,4 +1,4 @@
-# Week 2 authorization matrix
+# Authorization matrix
 
 The API must authenticate each protected request, authorize the requested
 action on the server, and scope user-owned database queries by the owner.
@@ -16,7 +16,7 @@ Frontend route guards do not replace these checks.
 | Security events | No access | No access | Read | No access |
 | EU reports | No access | No access | Read | Read-only |
 
-## Implemented in this phase
+## Implemented
 
 - The existing `/api/users/me` endpoint returns the authenticated user's
   profile. Public registration remains limited to startup owners and suppliers.
@@ -24,16 +24,18 @@ Frontend route guards do not replace these checks.
 - The voucher demonstration permits operators to allocate/list vouchers,
   startup owners to read only their own vouchers, and EU compliance officers
   to read aggregate totals.
+- Every `/api/ops/*` route authenticates and requires the NIB system operator
+  role. Supplier verification writes are rate limited and transactionally
+  audit logged.
+- Operator APIs provide read-only voucher, order, and escrow monitoring.
+- The beneficiary product catalog is restricted to active products from
+  verified suppliers.
 - Authentication and role checks run before route handlers. Unknown
   permission names fail during route setup.
 - Request bodies, filters, and route parameters are validated before use.
 
-Product, order, settlement, supplier-verification, and EU-report routes are
-future modules. Their rows document the intended policy; they do not authorize
-adding those business routes or changing escrow, settlement, or clearing logic
-in this phase.
-
-The voucher demo associates the recipient directly with a
-`WOMEN_STARTUP_OWNER` user. This is a temporary relationship because the
-repository has no agreed `StartupProfile` model. Confirm the business
-relationship with the team before extending the voucher data model.
+The Week 2 voucher allocation route still associates its recipient directly
+with a `WOMEN_STARTUP_OWNER` user. Week 3 adds optional startup profile links
+and domain status values for monitoring while retaining the legacy status
+values. Operator routes never change voucher, order, escrow, settlement, or
+clearing data.

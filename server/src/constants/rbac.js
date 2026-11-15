@@ -39,6 +39,9 @@ const RBAC_PERMISSIONS = Object.freeze({
   securityEvents: Object.freeze({
     read: Object.freeze(["NIB_SYSTEM_OPERATOR"]),
   }),
+  operations: Object.freeze({
+    read: Object.freeze(["NIB_SYSTEM_OPERATOR"]),
+  }),
   euReports: Object.freeze({
     read: Object.freeze(["EU_COMPLIANCE_OFFICER"]),
   }),

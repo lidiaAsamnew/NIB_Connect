@@ -2,7 +2,13 @@ import { useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
+import OperatorLayout from "./layouts/OperatorLayout";
 import AuditLogsPage from "./pages/operator/AuditLogsPage";
+import OperatorDashboardPage from "./pages/operator/OperatorDashboardPage";
+import OperatorEscrowPage from "./pages/operator/OperatorEscrowPage";
+import OperatorOrdersPage from "./pages/operator/OperatorOrdersPage";
+import OperatorSuppliersPage from "./pages/operator/OperatorSuppliersPage";
+import OperatorVouchersPage from "./pages/operator/OperatorVouchersPage";
 
 function LoginPage() {
   const { login, user, isLoading, error } = useAuth();
@@ -149,7 +155,11 @@ function ProfilePage() {
           <div><dt>Phone</dt><dd>{user.phoneNumber}</dd></div>
           <div><dt>Account role</dt><dd><span className="role-badge">{user.role?.replaceAll("_", " ")}</span></dd></div>
         </dl>
-        <Link className="profile-link" to="/operator">Open operator-only example <span aria-hidden="true">→</span></Link>
+        {user.role === "NIB_SYSTEM_OPERATOR" && (
+          <Link className="profile-link" to="/operator">
+            Open operations dashboard <span aria-hidden="true">→</span>
+          </Link>
+        )}
       </section>
     </main>
   );
@@ -164,25 +174,17 @@ function App() {
         path="/operator"
         element={
           <ProtectedRoute allowedRoles={["NIB_SYSTEM_OPERATOR"]}>
-            <main className="profile-shell">
-              <header className="profile-header">
-                <div className="brand-lockup">
-                  <span className="brand-mark">N</span>
-                  <span>NIB <strong>CONNECT</strong></span>
-                </div>
-              </header>
-              <section className="profile-card">
-                <p className="eyebrow">Access verified</p>
-                <h1>Operator workspace</h1>
-                <p className="form-intro">Your account has the NIB system operator role.</p>
-                <Link className="profile-link" to="/operator/audit-logs">
-                  Review audit logs <span aria-hidden="true">→</span>
-                </Link>
-              </section>
-            </main>
+            <OperatorLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<Navigate to="/operator/dashboard" replace />} />
+        <Route path="dashboard" element={<OperatorDashboardPage />} />
+        <Route path="suppliers" element={<OperatorSuppliersPage />} />
+        <Route path="vouchers" element={<OperatorVouchersPage />} />
+        <Route path="orders" element={<OperatorOrdersPage />} />
+        <Route path="escrow" element={<OperatorEscrowPage />} />
+      </Route>
       <Route
         path="/operator/audit-logs"
         element={

@@ -11,6 +11,7 @@ const users = new Map();
 const auditLogs = [];
 const securityEvents = [];
 const vouchers = [];
+const notifications = [];
 let server;
 let baseUrl;
 
@@ -43,6 +44,11 @@ const prisma = {
       return [...users.values()].find((user) =>
         user.email === email.email || user.phoneNumber === phoneNumber.phoneNumber
       ) || null;
+    },
+    async findMany({ where = {} } = {}) {
+      return [...users.values()]
+        .filter((user) => Object.entries(where).every(([key, value]) => user[key] === value))
+        .map(({ id }) => ({ id }));
     },
   },
   auditLog: {
@@ -78,6 +84,16 @@ const prisma = {
     },
     async count({ where = {} } = {}) {
       return securityEvents.filter((item) => matchesWhere(item, where)).length;
+    },
+  },
+  notification: {
+    async findFirst({ where }) {
+      return notifications.find((item) => matchesWhere(item, where)) || null;
+    },
+    async create({ data }) {
+      const item = { id: randomUUID(), ...data, createdAt: new Date() };
+      notifications.push(item);
+      return item;
     },
   },
   voucher: {
@@ -142,6 +158,7 @@ after(async () => {
   auditLogs.length = 0;
   securityEvents.length = 0;
   vouchers.length = 0;
+  notifications.length = 0;
 });
 
 async function request(path, { method = "GET", body, token } = {}) {
@@ -298,6 +315,24 @@ function seedUser(role, email, phoneNumber) {
   users.set(user.id, user);
   return user;
 }
+
+test("supplier registration creates an operator notification", async () => {
+  seedUser("NIB_SYSTEM_OPERATOR", "registration-operator@example.com", "+251911000030");
+  const result = await request("/api/auth/register", {
+    method: "POST",
+    body: {
+      ...registration("new-supplier@example.com", "+251911000031"),
+      role: "TIER1_SUPPLIER",
+    },
+  });
+
+  assert.equal(result.response.status, 201);
+  assert.equal(
+    notifications.some((item) => item.type === "NEW_SUPPLIER_REGISTRATION"),
+    true,
+  );
+  assert.equal(JSON.stringify(notifications).includes("password"), false);
+});
 
 function tokenFor(user) {
   return jwt.sign({ role: user.role, email: user.email }, jwtSecret, { subject: user.id });

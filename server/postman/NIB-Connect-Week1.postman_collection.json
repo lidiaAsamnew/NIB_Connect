@@ -1,14 +1,20 @@
 {
   "info": {
-    "name": "NIB-Connect Week 1 Authentication",
-    "description": "Registration, login, current-user, and operator role-guard checks.",
+    "name": "NIB-Connect Authentication and Week 3 Operations",
+    "description": "Authentication checks and secured NIB operator monitoring APIs.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000" },
     { "key": "email", "value": "loza@example.com" },
     { "key": "phoneNumber", "value": "+251911000001" },
-    { "key": "accessToken", "value": "" }
+    { "key": "password", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "operatorToken", "value": "" },
+    { "key": "beneficiaryToken", "value": "" },
+    { "key": "supplierId", "value": "" },
+    { "key": "voucherId", "value": "" },
+    { "key": "orderId", "value": "" }
   ],
   "item": [
     {
@@ -18,7 +24,7 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"fullName\": \"Loza Yonas\",\n  \"email\": \"{{email}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"password\": \"StrongPass123!\",\n  \"role\": \"WOMEN_STARTUP_OWNER\"\n}",
+          "raw": "{\n  \"fullName\": \"Demo Beneficiary\",\n  \"email\": \"{{email}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"WOMEN_STARTUP_OWNER\"\n}",
           "options": { "raw": { "language": "json" } }
         },
         "url": "{{baseUrl}}/api/auth/register"
@@ -44,7 +50,7 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"identifier\": \"{{email}}\",\n  \"password\": \"StrongPass123!\"\n}",
+          "raw": "{\n  \"identifier\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
           "options": { "raw": { "language": "json" } }
         },
         "url": "{{baseUrl}}/api/auth/login"
@@ -153,6 +159,145 @@
               "});"
             ]
           }
+        }
+      ]
+    },
+    {
+      "name": "Week 3 Operations",
+      "item": [
+        {
+          "name": "Dashboard summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/ops/dashboard"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Operator dashboard is available to an operator', function () {",
+                "  pm.response.to.have.status(200);",
+                "  pm.expect(pm.response.json().data).to.have.property('suppliers');",
+                "  pm.expect(pm.response.json().data).to.have.property('orders');",
+                "});"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "List suppliers",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/ops/suppliers?status=unverified&page=1&limit=10"
+          }
+        },
+        {
+          "name": "Verify supplier",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{operatorToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Documents checked and tax details verified.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/ops/suppliers/{{supplierId}}/verify"
+          }
+        },
+        {
+          "name": "Unverify supplier",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{operatorToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"remarks\": \"Verification requires further review.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/ops/suppliers/{{supplierId}}/unverify"
+          }
+        },
+        {
+          "name": "List vouchers",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/ops/vouchers?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Voucher details",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/ops/vouchers/{{voucherId}}"
+          }
+        },
+        {
+          "name": "List orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/ops/orders?page=1&limit=10"
+          }
+        },
+        {
+          "name": "Order details and timeline",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/ops/orders/{{orderId}}"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Order monitoring does not expose OTP hashes', function () {",
+                "  pm.response.to.have.status(200);",
+                "  pm.expect(JSON.stringify(pm.response.json())).not.to.include('otpHash');",
+                "  pm.expect(JSON.stringify(pm.response.json())).not.to.include('otpSecureHash');",
+                "});"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Escrow summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/ops/escrow-summary"
+          }
+        },
+        {
+          "name": "Beneficiary catalog (verified suppliers only)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{beneficiaryToken}}" }],
+            "url": "{{baseUrl}}/api/products?page=1&limit=10"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Catalog response contains no supplier bank details', function () {",
+                "  pm.response.to.have.status(200);",
+                "  pm.expect(JSON.stringify(pm.response.json())).not.to.include('bankAccountNumber');",
+                "});"
+              ]
+            }
+          }]
         }
       ]
     }

@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const express = require("express");
 const { validate } = require("../middlewares/validate");
 const { recordAuditLog } = require("../services/auditService");
+const { createOperatorNotifications } = require("../services/notificationService");
 const { recordSecurityEvent } = require("../services/securityEventService");
 const { loginSchema, registrationSchema } = require("../validators/auth.validator");
 const { signToken } = require("../utils/jwt");
@@ -41,6 +42,15 @@ function createAuthRouter({ prisma, jwtSecret, jwtExpiresIn }) {
           entityId: createdUser.id,
           metadata: { role: createdUser.role },
         });
+        if (createdUser.role === "TIER1_SUPPLIER") {
+          await createOperatorNotifications(transaction, {
+            title: "New supplier registration",
+            message: "A supplier account has registered and is awaiting profile review.",
+            type: "NEW_SUPPLIER_REGISTRATION",
+            link: "/operator/suppliers",
+            relatedEntityId: createdUser.id,
+          });
+        }
         return createdUser;
       });
       return res.status(201).json({

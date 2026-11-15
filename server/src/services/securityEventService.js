@@ -1,3 +1,5 @@
+const { notifySecurityEvent } = require("./notificationService");
+
 async function recordSecurityEvent(prisma, {
   userId = null,
   eventType,
@@ -8,9 +10,11 @@ async function recordSecurityEvent(prisma, {
   if (metadata !== null) {
     data.metadata = metadata;
   }
-  return prisma.securityEvent.create({
+  const event = await prisma.securityEvent.create({
     data,
   });
+  await notifySecurityEvent(prisma, eventType);
+  return event;
 }
 
 module.exports = { recordSecurityEvent };
