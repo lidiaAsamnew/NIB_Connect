@@ -40,7 +40,8 @@ export async function getMe() {
     return mockUser();
   }
   const { data } = await api.get("/users/me");
-  return data.data;
+  // The existing backend returns { success: true, data: { user } }.
+  return data.data.user;
 }
 
 export function getErrorMessage(err) {

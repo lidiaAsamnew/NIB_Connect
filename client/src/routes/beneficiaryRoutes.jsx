@@ -3,11 +3,11 @@ import ProtectedRoute from "../components/ProtectedRoute";
 import BeneficiaryLayout from "../layouts/BeneficiaryLayout";
 import Dashboard from "../pages/beneficiary/Dashboard";
 import Placeholder from "../pages/beneficiary/Placeholder";
+import StartupProfile from "../pages/beneficiary/StartupProfile";
+import Vouchers from "../pages/beneficiary/Vouchers";
 import { ROLES } from "../utils/constants";
 
 const PAGES = [
-  ["/startup/profile", "Startup Profile"],
-  ["/vouchers", "Vouchers"],
   ["/products", "Products"],
   ["/orders", "My Orders"],
   ["/notifications", "Notifications"],
@@ -24,6 +24,8 @@ export default function beneficiaryRoutes() {
       }
     >
       <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/startup/profile" element={<StartupProfile />} />
+      <Route path="/vouchers" element={<Vouchers />} />
       {PAGES.map(([path, title]) => (
         <Route key={path} path={path} element={<Placeholder title={title} />} />
       ))}
