@@ -549,6 +549,58 @@ input {
   color: #075e55;
 }
 
+.audit-card {
+  width: min(100%, 1100px);
+  margin-top: 54px;
+}
+
+.audit-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.audit-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #304656;
+  font-size: 12px;
+}
+
+.audit-table th,
+.audit-table td {
+  min-width: 120px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.audit-table th {
+  background: #f7fafc;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.audit-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.audit-pagination {
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
 @media (max-width: 760px) {
   .page-shell {
     display: block;

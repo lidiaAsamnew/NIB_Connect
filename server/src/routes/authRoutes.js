@@ -1,12 +1,13 @@
 const bcrypt = require("bcryptjs");
 const express = require("express");
-const { PUBLIC_REGISTRATION_ROLES } = require("../constants/roles");
+const { validate } = require("../middlewares/validate");
+const { recordAuditLog } = require("../services/auditService");
+const { recordSecurityEvent } = require("../services/securityEventService");
+const { loginSchema, registrationSchema } = require("../validators/auth.validator");
 const { signToken } = require("../utils/jwt");
 
 const SALT_ROUNDS = 10;
 const dummyPasswordHash = bcrypt.hash("unavailable-user-password", SALT_ROUNDS);
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phonePattern = /^\+?[1-9]\d{7,14}$/;
 const publicUserFields = {
   id: true,
   fullName: true,
@@ -24,40 +25,23 @@ function isDuplicateUserError(error) {
 function createAuthRouter({ prisma, jwtSecret, jwtExpiresIn }) {
   const router = express.Router();
 
-  router.post("/register", async (req, res, next) => {
-    const body = req.body;
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide valid registration details.",
-      });
-    }
-
-    const fullName = typeof body.fullName === "string" ? body.fullName.trim() : "";
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const phoneNumber = typeof body.phoneNumber === "string" ? body.phoneNumber.trim() : "";
-    const password = body.password;
-    const role = body.role;
-
-    if (
-      fullName.length < 2 ||
-      !emailPattern.test(email) ||
-      !phonePattern.test(phoneNumber) ||
-      typeof password !== "string" ||
-      password.length < 8 ||
-      !PUBLIC_REGISTRATION_ROLES.includes(role)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide a valid name, email, phone number, password, and public role.",
-      });
-    }
-
+  router.post("/register", validate(registrationSchema), async (req, res, next) => {
+    const { fullName, email, phoneNumber, password, role } = req.validatedBody;
     try {
       const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-      const user = await prisma.user.create({
-        data: { fullName, email, phoneNumber, passwordHash, role },
-        select: publicUserFields,
+      const user = await prisma.$transaction(async (transaction) => {
+        const createdUser = await transaction.user.create({
+          data: { fullName, email, phoneNumber, passwordHash, role },
+          select: publicUserFields,
+        });
+        await recordAuditLog(transaction, {
+          actorId: createdUser.id,
+          action: "USER_REGISTERED",
+          entityType: "USER",
+          entityId: createdUser.id,
+          metadata: { role: createdUser.role },
+        });
+        return createdUser;
       });
       return res.status(201).json({
         success: true,
@@ -75,14 +59,8 @@ function createAuthRouter({ prisma, jwtSecret, jwtExpiresIn }) {
     }
   });
 
-  router.post("/login", async (req, res, next) => {
-    const identifier = typeof req.body?.identifier === "string" ? req.body.identifier.trim() : "";
-    const password = req.body?.password;
-
-    if (!identifier || typeof password !== "string" || password.length === 0) {
-      return res.status(401).json({ success: false, message: "Invalid credentials." });
-    }
-
+  router.post("/login", validate(loginSchema), async (req, res, next) => {
+    const { identifier, password } = req.validatedBody;
     try {
       const normalizedIdentifier = identifier.includes("@")
         ? identifier.toLowerCase()
@@ -99,11 +77,38 @@ function createAuthRouter({ prisma, jwtSecret, jwtExpiresIn }) {
       const passwordHash = user ? user.passwordHash : await dummyPasswordHash;
       const passwordMatches = await bcrypt.compare(password, passwordHash);
       if (!user || !user.isActive || !passwordMatches) {
+        const reason = !user
+          ? "unknown_user"
+          : !user.isActive
+            ? "inactive_account"
+            : "invalid_password";
+        await prisma.$transaction(async (transaction) => {
+          await recordAuditLog(transaction, {
+            actorId: user ? user.id : null,
+            action: "USER_LOGIN_FAILURE",
+            entityType: "USER",
+            entityId: user ? user.id : null,
+            metadata: { reason },
+          });
+          await recordSecurityEvent(transaction, {
+            userId: user ? user.id : null,
+            eventType: "LOGIN_FAILED",
+            message: "A login attempt failed.",
+            metadata: { reason },
+          });
+        });
         return res.status(401).json({ success: false, message: "Invalid credentials." });
       }
 
       const accessToken = signToken(user, jwtSecret, jwtExpiresIn);
       const { passwordHash: omitted, ...safeUser } = user;
+      await recordAuditLog(prisma, {
+        actorId: user.id,
+        action: "USER_LOGIN_SUCCESS",
+        entityType: "USER",
+        entityId: user.id,
+        metadata: { role: user.role },
+      });
       return res.json({
         success: true,
         message: "Login successful.",

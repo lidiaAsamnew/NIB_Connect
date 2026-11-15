@@ -3,8 +3,12 @@ const express = require("express");
 const helmet = require("helmet");
 const { rateLimit } = require("express-rate-limit");
 const { createAuthRouter } = require("./routes/authRoutes");
+const { createAuditRouter } = require("./routes/auditRoutes");
 const { createOperatorRouter } = require("./routes/operatorRoutes");
+const { createSecurityEventRouter } = require("./routes/securityEventRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
+const { createVoucherRouter } = require("./routes/voucherRoutes");
+const { recordSecurityEvent } = require("./services/securityEventService");
 
 function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = process.env.JWT_EXPIRES_IN || "1d" }) {
   if (!prisma) {
@@ -19,6 +23,7 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
   }
 
   const app = express();
+  app.locals.prisma = prisma;
   const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
   let parsedClientOrigin;
   try {
@@ -47,6 +52,18 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
     limit: 20,
     standardHeaders: "draft-8",
     legacyHeaders: false,
+    handler: async (req, res, next, options) => {
+      try {
+        await recordSecurityEvent(prisma, {
+          eventType: "AUTH_RATE_LIMITED",
+          message: "Authentication request rate limit was exceeded.",
+          metadata: { method: req.method, path: req.path },
+        });
+        return res.status(options.statusCode).json(options.message);
+      } catch (error) {
+        return next(error);
+      }
+    },
     message: {
       success: false,
       message: "Too many authentication attempts. Please try again later.",
@@ -55,6 +72,9 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
   app.use("/api/auth", createAuthRouter({ prisma, jwtSecret, jwtExpiresIn }));
   app.use("/api/users", createUserRouter({ prisma, jwtSecret }));
   app.use("/api/operator", createOperatorRouter({ prisma, jwtSecret }));
+  app.use("/api/audit-logs", createAuditRouter({ prisma, jwtSecret }));
+  app.use("/api/security-events", createSecurityEventRouter({ prisma, jwtSecret }));
+  app.use("/api/vouchers", createVoucherRouter({ prisma, jwtSecret }));
 
   app.use((err, req, res, next) => {
     if (res.headersSent) {

@@ -1,4 +1,25 @@
 const { verifyToken } = require("../utils/jwt");
+const { recordSecurityEvent } = require("../services/securityEventService");
+
+async function rejectAuthentication(req, res, next, prisma, reason) {
+  try {
+    await recordSecurityEvent(prisma, {
+      eventType: "AUTHENTICATION_FAILED",
+      message: "An authenticated request could not be verified.",
+      metadata: {
+        reason,
+        method: req.method,
+        resource: req.baseUrl || "/",
+      },
+    });
+    return res.status(401).json({
+      success: false,
+      message: "Authentication token is missing or invalid.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
 
 function authenticate({ prisma, jwtSecret }) {
   return async (req, res, next) => {
@@ -6,27 +27,18 @@ function authenticate({ prisma, jwtSecret }) {
     const match = authorization.match(/^Bearer\s+(\S+)$/i);
 
     if (!match) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication token is missing or invalid.",
-      });
+      return rejectAuthentication(req, res, next, prisma, "missing_or_malformed_token");
     }
 
     let decoded;
     try {
       decoded = verifyToken(match[1], jwtSecret);
     } catch (error) {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication token is missing or invalid.",
-      });
+      return rejectAuthentication(req, res, next, prisma, "invalid_token");
     }
 
     if (!decoded || typeof decoded.sub !== "string") {
-      return res.status(401).json({
-        success: false,
-        message: "Authentication token is missing or invalid.",
-      });
+      return rejectAuthentication(req, res, next, prisma, "invalid_subject");
     }
 
     try {
@@ -44,10 +56,7 @@ function authenticate({ prisma, jwtSecret }) {
       });
 
       if (!user || !user.isActive) {
-        return res.status(401).json({
-          success: false,
-          message: "Authentication token is missing or invalid.",
-        });
+        return rejectAuthentication(req, res, next, prisma, "inactive_or_unknown_user");
       }
 
       req.user = user;

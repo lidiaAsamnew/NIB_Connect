@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
+import AuditLogsPage from "./pages/operator/AuditLogsPage";
 
 function LoginPage() {
   const { login, user, isLoading, error } = useAuth();
@@ -174,8 +175,19 @@ function App() {
                 <p className="eyebrow">Access verified</p>
                 <h1>Operator workspace</h1>
                 <p className="form-intro">Your account has the NIB system operator role.</p>
+                <Link className="profile-link" to="/operator/audit-logs">
+                  Review audit logs <span aria-hidden="true">→</span>
+                </Link>
               </section>
             </main>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/operator/audit-logs"
+        element={
+          <ProtectedRoute allowedRoles={["NIB_SYSTEM_OPERATOR"]}>
+            <AuditLogsPage />
           </ProtectedRoute>
         }
       />
