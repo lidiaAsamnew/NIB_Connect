@@ -78,7 +78,48 @@ test("EU compliance officer can access summary", async () => {
   assert.ok("startups" in body.data);
   assert.ok("suppliers" in body.data);
   assert.ok("orders" in body.data);
+  assert.ok("CANCELLED" in body.data.orders);
   assert.ok("impact" in body.data);
+});
+
+test("EU compliance officer can search orders by ID or waybill", async (t) => {
+  const baselineResponse = await request(
+    "/orders?page=1&pageSize=100",
+    "EU_COMPLIANCE_OFFICER"
+  );
+  assert.equal(baselineResponse.status, 200);
+
+  const baseline = await baselineResponse.json();
+  const sample = baseline.data?.[0];
+  if (!sample) {
+    t.skip("No order records are available to verify search behavior.");
+    return;
+  }
+
+  const searchTerms = [sample.id, sample.waybillCode].filter(Boolean);
+  for (const term of searchTerms) {
+    const response = await request(
+      `/orders?page=1&pageSize=100&search=${encodeURIComponent(term)}`,
+      "EU_COMPLIANCE_OFFICER"
+    );
+    assert.equal(response.status, 200);
+
+    const body = await response.json();
+    assert.ok(body.data.some((order) => order.id === sample.id));
+    assert.ok(
+      body.data.every(
+        (order) => order.id.includes(term) || order.waybillCode?.includes(term)
+      )
+    );
+  }
+});
+
+test("order search rejects values longer than 128 characters", async () => {
+  const response = await request(
+    `/orders?search=${"x".repeat(129)}`,
+    "EU_COMPLIANCE_OFFICER"
+  );
+  assert.equal(response.status, 400);
 });
 
 test("EU compliance officer receives weekly allocation array", async () => {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   getComplianceSummary,
   getWeeklyAllocationStream,
@@ -10,6 +11,48 @@ import {
   getVouchers,
   getEscrowTransactions,
 } from "../services/reportingService.js";
+import { generateComplianceReportPackage } from "../services/reportPackageService.js";
+
+export async function weeklySectorMicroDataPackage(req, res, next) {
+  try {
+    const filters = {};
+
+    if (req.query.startDate) filters.startDate = req.query.startDate;
+    if (req.query.endDate) filters.endDate = req.query.endDate;
+
+    const data = await getWeeklyAllocationStream(filters);
+    const generatedAt = new Date().toISOString();
+    const checksum = createHash("sha256")
+      .update(JSON.stringify(data))
+      .digest("hex");
+
+    res.json({
+      success: true,
+      data: {
+        packageType: "weekly-sector",
+        generatedAt,
+        generatedBy: req.user.role,
+        filters,
+        recordCount: data.length,
+        checksum,
+        data,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function downloadReportPackage(req, res, next) {
+  try {
+    const { buffer, filename } = await generateComplianceReportPackage(req.query);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+}
 
 function handleReport(service) {
   return async (req, res, next) => {

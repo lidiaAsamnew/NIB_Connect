@@ -18,22 +18,33 @@ export function SummaryCard({ label, value, detail }) {
   );
 }
 
-export function ReportState({ loading, error, empty, children }) {
+export function ReportState({ loading, error, empty, onRetry, children }) {
   if (loading) {
-    return <div className="eu-state" role="status">Loading report data...</div>;
+    return (
+      <div className="eu-state eu-state-loading" role="status" aria-busy="true">
+        <span>Loading report data...</span>
+        <span className="eu-loading-bar" aria-hidden="true" />
+        <span className="eu-loading-bar eu-loading-bar-short" aria-hidden="true" />
+      </div>
+    );
   }
 
   if (error) {
     const status = error.response?.status;
     const message = error.response?.data?.message;
     const accessMessage = status === 401 || status === 403
-      ? "Access was denied. Sign in with an authorized EU compliance account once client authentication is available."
+      ? "Access was denied. This API requires EU_COMPLIANCE_OFFICER or NIB_SYSTEM_OPERATOR; client sign-in integration is pending."
       : message || error.message || "The report could not be loaded.";
 
     return (
       <div className="eu-state eu-state-error" role="alert">
         <strong>Unable to load report</strong>
         <span>{accessMessage}</span>
+        {onRetry && (
+          <button type="button" className="eu-retry-button" onClick={onRetry}>
+            Retry
+          </button>
+        )}
       </div>
     );
   }
@@ -54,7 +65,7 @@ export function DataTable({ columns, rows, rowKey }) {
     <div className="eu-table-wrap">
       <table className="eu-table">
         <thead>
-          <tr>{columns.map((column) => <th key={column.key}>{column.label}</th>)}</tr>
+          <tr>{columns.map((column) => <th key={column.key} scope="col">{column.label}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (

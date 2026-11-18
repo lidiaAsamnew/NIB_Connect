@@ -20,8 +20,29 @@ The server mounts the compliance router at `/api/compliance`. Every endpoint bel
 | `GET /api/compliance/orders` | Paginated order records and related reporting fields. |
 | `GET /api/compliance/vouchers` | Paginated voucher records and related startup/order fields. |
 | `GET /api/compliance/escrow-transactions` | Paginated escrow transaction records and related order/voucher fields. |
+| `GET /api/compliance/report-package` | JSON weekly-sector micro-data package with applied date filters, record count, and SHA-256 checksum. |
+| `GET /api/compliance/report-package.zip` | ZIP download containing six CSV reports and a manifest. |
 
 Non-paginated reports return `{ "success": true, "data": ... }`. The orders, vouchers, and escrow-transactions endpoints return `{ "success": true, "data": [...], "meta": { "pagination": ... } }`.
+
+The JSON report package uses the same weekly-allocation data as `/weekly-allocation-stream`. It accepts `startDate` and `endDate`; sector and region filters are not applied by this weekly report. Its `data` array contains weekly rows grouped by reporting week and sector, `recordCount` is the number of rows, and `checksum` is the SHA-256 hash of `JSON.stringify(data)`. `generatedBy` contains the authenticated user's role.
+
+The JSON response shape is:
+
+```json
+{
+  "success": true,
+  "data": {
+    "packageType": "weekly-sector",
+    "generatedAt": "ISO timestamp",
+    "generatedBy": "EU_COMPLIANCE_OFFICER",
+    "filters": {},
+    "recordCount": 0,
+    "checksum": "sha256 hash",
+    "data": []
+  }
+}
+```
 
 ## Authentication and Roles
 

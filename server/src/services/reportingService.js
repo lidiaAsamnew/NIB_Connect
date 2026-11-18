@@ -233,6 +233,7 @@ export async function getComplianceSummary() {
     DISPATCHED_IN_TRANSIT: 0,
     DELIVERED_PENDING_HANDSHAKE: 0,
     VERIFIED_AND_CLEARED: 0,
+    CANCELLED: 0,
   };
 
   for (const group of orderGroups) {
@@ -432,8 +433,26 @@ export async function getEscrowSummary() {
 export async function getOrders(filters = {}) {
   validateEnumFilter(filters.status, ORDER_STATUSES, "status");
 
+  let searchFilter = {};
+  if (filters.search !== undefined && filters.search !== "") {
+    if (typeof filters.search !== "string" || filters.search.length > 128) {
+      throw new BadRequestError("search must be a string of at most 128 characters");
+    }
+
+    const search = filters.search.trim();
+    if (search) {
+      searchFilter = {
+        OR: [
+          { id: { contains: search } },
+          { waybillCode: { contains: search } },
+        ],
+      };
+    }
+  }
+
   const where = {
     ...buildOrderWhere(filters),
+    ...searchFilter,
     ...(filters.startupId ? { startupId: filters.startupId } : {}),
     ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
     ...(filters.voucherId ? { voucherId: filters.voucherId } : {}),
@@ -444,6 +463,7 @@ export async function getOrders(filters = {}) {
     where,
     {
       id: true,
+      waybillCode: true,
       startupId: true,
       supplierId: true,
       voucherId: true,
@@ -503,6 +523,16 @@ export async function getVouchers(filters = {}) {
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.startupId ? { startupId: filters.startupId } : {}),
     ...(filters.allocatedById ? { allocatedById: filters.allocatedById } : {}),
+    ...(filters.sector || filters.region
+      ? {
+          startup: {
+            is: {
+              ...(filters.sector ? { sector: filters.sector } : {}),
+              ...(filters.region ? { region: filters.region } : {}),
+            },
+          },
+        }
+      : {}),
   };
 
   return getPaginatedRecords(
@@ -546,6 +576,20 @@ export async function getEscrowTransactions(filters = {}) {
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.orderId ? { orderId: filters.orderId } : {}),
     ...(filters.voucherId ? { voucherId: filters.voucherId } : {}),
+    ...(filters.sector || filters.region
+      ? {
+          order: {
+            is: {
+              startup: {
+                is: {
+                  ...(filters.sector ? { sector: filters.sector } : {}),
+                  ...(filters.region ? { region: filters.region } : {}),
+                },
+              },
+            },
+          },
+        }
+      : {}),
   };
 
   return getPaginatedRecords(

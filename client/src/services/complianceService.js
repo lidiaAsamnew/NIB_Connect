@@ -27,6 +27,34 @@ export const getSectorReport = (params) =>
   getReport("/compliance/sector-report", params);
 export const getRegionReport = (params) =>
   getReport("/compliance/region-report", params);
+export const getOrderStatusReport = (params) =>
+  getReport("/compliance/order-status-report", params);
+
+export async function getComplianceReportPackage(params) {
+  ensureApiConfigured();
+  const response = await api.get("/compliance/report-package", { params });
+
+  if (!response.data?.success || response.data.data === undefined) {
+    throw new Error(response.data?.message || "Unexpected report package response.");
+  }
+
+  return response.data;
+}
+
+export async function getComplianceReportPackageZip(params) {
+  ensureApiConfigured();
+  const response = await api.get("/compliance/report-package.zip", {
+    params,
+    responseType: "blob",
+  });
+  const disposition = response.headers["content-disposition"] || "";
+  const filename = /filename="?([^";]+)"?/iu.exec(disposition)?.[1];
+
+  return {
+    blob: response.data,
+    filename: filename || `eu-compliance-report-${new Date().toISOString().slice(0, 10)}.zip`,
+  };
+}
 
 async function getPaginatedReport(path, resourceName, params) {
   ensureApiConfigured();

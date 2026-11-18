@@ -15,6 +15,8 @@ import {
   orders,
   vouchers,
   escrowTransactions,
+  weeklySectorMicroDataPackage,
+  downloadReportPackage,
 } from "../controllers/complianceController.js";
 
 const router = Router();
@@ -34,5 +36,7 @@ router.get("/escrow-summary", ...complianceAccess, escrowSummary);
 router.get("/orders", ...complianceAccess, orders);
 router.get("/vouchers", ...complianceAccess, vouchers);
 router.get("/escrow-transactions", ...complianceAccess, escrowTransactions);
+router.get("/report-package", ...complianceAccess, weeklySectorMicroDataPackage);
+router.get("/report-package.zip", ...complianceAccess, downloadReportPackage);
 
 export default router;
