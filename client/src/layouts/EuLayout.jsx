@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import DateRangeFilter from "../components/eu/DateRangeFilter.jsx";
+import { useAuth } from "../hooks/useAuth.js";
 import "../eu.css";
 
 const navigation = [
@@ -14,6 +15,8 @@ const navigation = [
 ];
 
 export default function EuLayout() {
+	const { user, logout } = useAuth();
+	const navigate = useNavigate();
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
 	const [sector, setSector] = useState("");
@@ -44,6 +47,11 @@ export default function EuLayout() {
 		setRegion("");
 	};
 
+	const handleSignOut = () => {
+		logout();
+		navigate("/login", { replace: true });
+	};
+
 	return (
 		<div className="eu-shell">
 			<nav className="eu-topbar" aria-label="Primary navigation">
@@ -51,7 +59,16 @@ export default function EuLayout() {
 					<span className="eu-brand-mark" aria-hidden="true">N</span>
 					<span>NIB Connect <small>EU COMPLIANCE</small></span>
 				</NavLink>
-				<div className="eu-topbar-actions">
+				<div
+					className="eu-topbar-actions"
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "flex-end",
+						flexWrap: "wrap",
+						gap: 12,
+					}}
+				>
 					<span
 						className="eu-role-badge"
 						style={{
@@ -65,9 +82,23 @@ export default function EuLayout() {
 							whiteSpace: "nowrap",
 						}}
 					>
-						EU Compliance Officer
+						{user.role === "EU_COMPLIANCE_OFFICER" ? "EU Compliance Officer" : user.role}
 					</span>
 					<span className="eu-topbar-context">Compliance reporting</span>
+					<button
+						type="button"
+						onClick={handleSignOut}
+						style={{
+							padding: "7px 10px",
+							color: "#f7fbf9",
+							background: "transparent",
+							border: "1px solid #b8d5c9",
+							borderRadius: 4,
+							cursor: "pointer",
+						}}
+					>
+						Sign out
+					</button>
 				</div>
 			</nav>
 

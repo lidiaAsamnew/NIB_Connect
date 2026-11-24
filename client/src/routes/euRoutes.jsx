@@ -1,5 +1,6 @@
 import { Route } from "react-router-dom";
 import EuLayout from "../layouts/EuLayout.jsx";
+import ProtectedRoute from "../components/ProtectedRoute.jsx";
 import ComplianceDashboard from "../pages/eu/ComplianceDashboard.jsx";
 import WeeklyAllocationStream from "../pages/eu/WeeklyAllocationStream.jsx";
 import SectorReport from "../pages/eu/SectorReport.jsx";
@@ -10,7 +11,14 @@ import EscrowTransactions from "../pages/eu/EscrowTransactions.jsx";
 
 export default function EuRoutes() {
   return (
-    <Route path="/eu" element={<EuLayout />}>
+    <Route
+      path="/eu"
+      element={
+        <ProtectedRoute allowedRoles={["EU_COMPLIANCE_OFFICER"]}>
+          <EuLayout />
+        </ProtectedRoute>
+      }
+    >
       <Route index element={<ComplianceDashboard />} />
       <Route path="dashboard" element={<ComplianceDashboard />} />
       <Route path="weekly-allocation-stream" element={<WeeklyAllocationStream />} />
