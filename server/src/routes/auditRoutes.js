@@ -13,6 +13,7 @@ const auditFields = {
   entityId: true,
   metadata: true,
   createdAt: true,
+  actor: { select: { id: true, fullName: true, email: true } },
 };
 
 function createAuditRouter({ prisma, jwtSecret }) {
@@ -21,10 +22,21 @@ function createAuditRouter({ prisma, jwtSecret }) {
   router.use(authorizePermission("auditLogs", "read"));
 
   router.get("/", validate(auditQuerySchema, "query"), async (req, res, next) => {
-    const { action, entityType, from, to, page, limit } = req.validatedQuery;
+    const { action, entityType, entityId, actor, from, to, page, limit } = req.validatedQuery;
     const where = {
       ...(action ? { action } : {}),
       ...(entityType ? { entityType } : {}),
+      ...(entityId ? { entityId } : {}),
+      ...(actor ? {
+        actor: {
+          is: {
+            OR: [
+              { fullName: { contains: actor } },
+              { email: { contains: actor } },
+            ],
+          },
+        },
+      } : {}),
       ...dateRangeFilter(from, to),
     };
 

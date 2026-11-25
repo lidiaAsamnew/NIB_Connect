@@ -2,7 +2,11 @@ const assert = require("node:assert/strict");
 const { randomUUID } = require("node:crypto");
 const { test } = require("node:test");
 const { recordSecurityEvent } = require("../src/services/securityEventService");
-const { notifyStaleHandshakeOrders } = require("../src/services/notificationService");
+const {
+  notifyExpiringVouchers,
+  notifyPendingSupplierVerifications,
+  notifyStaleHandshakeOrders,
+} = require("../src/services/notificationService");
 
 function notificationPrisma() {
   const operators = [
@@ -12,11 +16,28 @@ function notificationPrisma() {
   const notifications = [];
   const securityEvents = [];
   const staleOrders = [{ id: randomUUID() }];
+  const pendingSuppliers = [{ id: randomUUID(), companyName: "Pending Supply" }];
+  const expiringVouchers = [{ id: randomUUID() }];
   return {
     operators,
     notifications,
     securityEvents,
     staleOrders,
+    supplierProfile: {
+      async findMany({ where }) {
+        assert.equal(where.isVerified, false);
+        assert.ok(where.createdAt.lte instanceof Date);
+        return pendingSuppliers;
+      },
+    },
+    voucher: {
+      async findMany({ where }) {
+        assert.deepEqual(where.status.in, ["ACTIVE", "ALLOCATED"]);
+        assert.ok(where.expiresAt.gte instanceof Date);
+        assert.ok(where.expiresAt.lte instanceof Date);
+        return expiringVouchers;
+      },
+    },
     user: {
       async findMany() {
         return operators;
@@ -101,4 +122,24 @@ test("stale handshake notifications are deduplicated by order", async () => {
   assert.equal(firstCreated, prisma.operators.length);
   assert.equal(secondCreated, 0);
   assert.equal(prisma.notifications.length, prisma.operators.length);
+});
+
+test("overdue supplier verification notifications are deduplicated per supplier", async () => {
+  const prisma = notificationPrisma();
+  const firstCreated = await notifyPendingSupplierVerifications(prisma);
+  const secondCreated = await notifyPendingSupplierVerifications(prisma);
+
+  assert.equal(firstCreated, prisma.operators.length);
+  assert.equal(secondCreated, 0);
+  assert.ok(prisma.notifications.every((item) => item.type === "SUPPLIER_PENDING_VERIFICATION"));
+});
+
+test("voucher expiry warnings are deduplicated per voucher", async () => {
+  const prisma = notificationPrisma();
+  const firstCreated = await notifyExpiringVouchers(prisma);
+  const secondCreated = await notifyExpiringVouchers(prisma);
+
+  assert.equal(firstCreated, prisma.operators.length);
+  assert.equal(secondCreated, 0);
+  assert.ok(prisma.notifications.every((item) => item.type === "VOUCHER_EXPIRING_SOON"));
 });

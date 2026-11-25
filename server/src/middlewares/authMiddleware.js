@@ -21,6 +21,23 @@ async function rejectAuthentication(req, res, next, prisma, reason) {
   }
 }
 
+async function rejectDeactivatedUser(req, res, next, prisma, userId) {
+  try {
+    await recordSecurityEvent(prisma, {
+      userId,
+      eventType: "DEACTIVATED_ACCOUNT_ACCESS",
+      message: "A deactivated account attempted to access a protected resource.",
+      metadata: { method: req.method, resource: req.baseUrl || "/" },
+    });
+    return res.status(403).json({
+      success: false,
+      message: "Your account is deactivated. Contact NIB operations.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 function authenticate({ prisma, jwtSecret }) {
   return async (req, res, next) => {
     const authorization = req.get("authorization") || "";
@@ -55,8 +72,11 @@ function authenticate({ prisma, jwtSecret }) {
         },
       });
 
-      if (!user || !user.isActive) {
-        return rejectAuthentication(req, res, next, prisma, "inactive_or_unknown_user");
+      if (!user) {
+        return rejectAuthentication(req, res, next, prisma, "unknown_user");
+      }
+      if (!user.isActive) {
+        return rejectDeactivatedUser(req, res, next, prisma, user.id);
       }
 
       req.user = user;

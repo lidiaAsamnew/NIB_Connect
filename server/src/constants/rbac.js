@@ -39,6 +39,17 @@ const RBAC_PERMISSIONS = Object.freeze({
   securityEvents: Object.freeze({
     read: Object.freeze(["NIB_SYSTEM_OPERATOR"]),
   }),
+  userManagement: Object.freeze({
+    read: Object.freeze(["NIB_SYSTEM_OPERATOR"]),
+    manage: Object.freeze(["NIB_SYSTEM_OPERATOR"]),
+  }),
+  voucherExpiry: Object.freeze({
+    expire: Object.freeze(["NIB_SYSTEM_OPERATOR"]),
+  }),
+  notifications: Object.freeze({
+    readOwn: USER_ROLES,
+    updateOwn: USER_ROLES,
+  }),
   operations: Object.freeze({
     read: Object.freeze(["NIB_SYSTEM_OPERATOR"]),
   }),

@@ -125,5 +125,34 @@ shared Student 3 branch yet. OTP throttling, lockout, beneficiary-only
 authorization, and replay checks must be integrated with that implementation
 when it is available; this branch does not replace the clearing logic.
 
+## Week 5 operator administration
+
+The operator can search and view accounts at `/operator/users`, activate or
+deactivate accounts, expire overdue allocated vouchers from the voucher
+monitoring page, and review personal alerts at `/operator/notifications`.
+User status changes and each voucher expiry are written to the audit log in
+the same database transaction. An operator cannot deactivate their own
+account. Login rejects deactivated accounts, and protected API requests using
+their existing tokens return `403`.
+
+`GET /api/ops/users` supports `search`, `role`, `status`, `page`, and `limit`.
+`GET /api/ops/users/:id` returns a safe account detail view. Operator-only
+`PATCH /api/ops/users/:id/activate` and `/deactivate` manage account status.
+`POST /api/ops/vouchers/expire-overdue` expires only `ALLOCATED` vouchers
+whose `expiresAt` is in the past, with one audit entry for each update.
+
+Authenticated users can only read and mark their own notifications through
+`GET /api/notifications`, `PATCH /api/notifications/:id/read`, and
+`PATCH /api/notifications/read-all`. The operator notification center shows
+the unread count and supports type filtering. Scheduled alerts flag supplier
+profiles pending verification for more than 24 hours and active/allocated
+vouchers expiring within seven days; duplicate alerts are suppressed per
+supplier or voucher.
+
+The audit viewer supports actor name/email, action, entity type, entity ID,
+date-range filters, pagination, and metadata display. Reconciliation remains
+read-only and awaits Student 3's endpoint/contract; this branch does not
+reimplement reconciliation or change financial amounts or clearing records.
+
 See [docs/rbac-matrix.md](./docs/rbac-matrix.md) for role policy and scope
 notes.

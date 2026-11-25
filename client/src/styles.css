@@ -564,6 +564,55 @@ input {
   font-size: 12px;
 }
 
+.audit-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+}
+
+.audit-filter-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #526b7e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.audit-filter-grid input {
+  min-height: 40px;
+  padding: 9px 11px;
+  border: 1px solid #d5e1e9;
+  border-radius: 7px;
+  background: #fff;
+  color: #263d4f;
+  font: inherit;
+  font-size: 12px;
+}
+
+.audit-filter-grid input:focus {
+  border-color: #2382ba;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(35, 130, 186, 0.12);
+}
+
+.audit-filter-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.audit-actor-email {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
 .audit-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
@@ -602,6 +651,10 @@ input {
 }
 
 @media (max-width: 760px) {
+  .audit-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .page-shell {
     display: block;
     background: #f3f8fc;

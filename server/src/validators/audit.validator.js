@@ -13,6 +13,8 @@ const paginationFields = {
 const auditQuerySchema = z.object({
   action: z.string().trim().min(1).max(64).optional(),
   entityType: z.string().trim().min(1).max(64).optional(),
+  entityId: z.string().trim().min(1).max(64).optional(),
+  actor: z.string().trim().min(1).max(254).optional(),
   from: dateSchema.optional(),
   to: dateSchema.optional(),
   ...paginationFields,

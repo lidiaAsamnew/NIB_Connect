@@ -6,6 +6,7 @@ const { createAuthRouter } = require("./routes/authRoutes");
 const { createAuditRouter } = require("./routes/auditRoutes");
 const { createOperatorRouter } = require("./routes/operatorRoutes");
 const { createOperationsRouter } = require("./routes/operationsRoutes");
+const { createNotificationRouter } = require("./routes/notificationRoutes");
 const { createProductRouter } = require("./routes/productRoutes");
 const { createSecurityEventRouter } = require("./routes/securityEventRoutes");
 const { createUserRouter } = require("./routes/userRoutes");
@@ -75,6 +76,7 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
   app.use("/api/users", createUserRouter({ prisma, jwtSecret }));
   app.use("/api/operator", createOperatorRouter({ prisma, jwtSecret }));
   app.use("/api/ops", createOperationsRouter({ prisma, jwtSecret }));
+  app.use("/api/notifications", createNotificationRouter({ prisma, jwtSecret }));
   app.use("/api/products", createProductRouter({ prisma, jwtSecret }));
   app.use("/api/audit-logs", createAuditRouter({ prisma, jwtSecret }));
   app.use("/api/security-events", createSecurityEventRouter({ prisma, jwtSecret }));

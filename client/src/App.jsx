@@ -10,6 +10,8 @@ import OperatorOrdersPage from "./pages/operator/OperatorOrdersPage";
 import OperatorSuppliersPage from "./pages/operator/OperatorSuppliersPage";
 import OperatorVouchersPage from "./pages/operator/OperatorVouchersPage";
 import OperatorSecurityEventsPage from "./pages/operator/OperatorSecurityEventsPage";
+import OperatorUsersPage from "./pages/operator/OperatorUsersPage";
+import OperatorNotificationsPage from "./pages/operator/OperatorNotificationsPage";
 
 function LoginPage() {
   const { login, user, isLoading, error } = useAuth();
@@ -181,20 +183,15 @@ function App() {
       >
         <Route index element={<Navigate to="/operator/dashboard" replace />} />
         <Route path="dashboard" element={<OperatorDashboardPage />} />
+        <Route path="users" element={<OperatorUsersPage />} />
         <Route path="suppliers" element={<OperatorSuppliersPage />} />
         <Route path="vouchers" element={<OperatorVouchersPage />} />
         <Route path="orders" element={<OperatorOrdersPage />} />
         <Route path="escrow" element={<OperatorEscrowPage />} />
+        <Route path="audit-logs" element={<AuditLogsPage />} />
         <Route path="security-events" element={<OperatorSecurityEventsPage />} />
+        <Route path="notifications" element={<OperatorNotificationsPage />} />
       </Route>
-      <Route
-        path="/operator/audit-logs"
-        element={
-          <ProtectedRoute allowedRoles={["NIB_SYSTEM_OPERATOR"]}>
-            <AuditLogsPage />
-          </ProtectedRoute>
-        }
-      />
       <Route path="*" element={<Navigate to="/me" replace />} />
     </Routes>
   );

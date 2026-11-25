@@ -29,7 +29,10 @@ export default function OperatorVouchersPage() {
   const [page, setPage] = useState(1);
   const [result, setResult] = useState({ items: [], total: 0, totalPages: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isExpiring, setIsExpiring] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -46,7 +49,7 @@ export default function OperatorVouchersPage() {
     return () => {
       active = false;
     };
-  }, [appliedFilters, page]);
+  }, [appliedFilters, page, refreshKey]);
 
   function applyFilters(event) {
     event.preventDefault();
@@ -64,6 +67,26 @@ export default function OperatorVouchersPage() {
     setPage(1);
   }
 
+  async function expireOverdueVouchers() {
+    if (!window.confirm("Expire all allocated vouchers whose expiry date has passed? This action will be audited.")) {
+      return;
+    }
+
+    setIsExpiring(true);
+    setError("");
+    setNotice("");
+    try {
+      const { expiredCount } = await operationsService.expireOverdueVouchers();
+      setNotice(`${expiredCount} overdue voucher${expiredCount === 1 ? "" : "s"} expired.`);
+      setIsLoading(true);
+      setRefreshKey((current) => current + 1);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "Overdue vouchers could not be expired.");
+    } finally {
+      setIsExpiring(false);
+    }
+  }
+
   return (
     <section className="ops-page">
       <header className="ops-page-heading">
@@ -72,7 +95,12 @@ export default function OperatorVouchersPage() {
           <h1>Voucher monitoring</h1>
           <p className="ops-subtitle">Review allocation, expiry, and order commitment without changing voucher records.</p>
         </div>
-        <span className="ops-count"><strong>{result.total}</strong> vouchers</span>
+        <div className="ops-header-actions">
+          <span className="ops-count"><strong>{result.total}</strong> vouchers</span>
+          <button className="primary-button ops-action" type="button" onClick={expireOverdueVouchers} disabled={isExpiring}>
+            {isExpiring ? "Expiring..." : "Expire overdue"}
+          </button>
+        </div>
       </header>
 
       <form className="ops-filter-panel ops-filter-grid" onSubmit={applyFilters}>
@@ -124,6 +152,7 @@ export default function OperatorVouchersPage() {
       </form>
 
       {error && <p className="ops-error" role="alert">{error}</p>}
+      {notice && <p className="ops-success" role="status">{notice}</p>}
 
       <div className="ops-table-wrap">
         <table className="ops-table">

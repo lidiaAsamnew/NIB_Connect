@@ -2,7 +2,11 @@ require("dotenv").config();
 
 const { PrismaClient } = require("@prisma/client");
 const { createApp } = require("./src/app");
-const { notifyStaleHandshakeOrders } = require("./src/services/notificationService");
+const {
+  notifyExpiringVouchers,
+  notifyPendingSupplierVerifications,
+  notifyStaleHandshakeOrders,
+} = require("./src/services/notificationService");
 
 const prisma = new PrismaClient();
 const app = createApp({ prisma });
@@ -20,15 +24,30 @@ async function checkPendingHandshakeOrders() {
   }
 }
 
+async function checkOperationalAlerts() {
+  try {
+    await Promise.all([
+      notifyPendingSupplierVerifications(prisma),
+      notifyExpiringVouchers(prisma),
+    ]);
+  } catch (error) {
+    console.error("Unable to create scheduled operator notifications:", error);
+  }
+}
+
 const server = app.listen(port, () => {
   console.log(`NIB-Connect API running on port ${port}`);
   void checkPendingHandshakeOrders();
+  void checkOperationalAlerts();
 });
 const handshakeAlertTimer = setInterval(checkPendingHandshakeOrders, 5 * 60 * 1000);
 handshakeAlertTimer.unref();
+const operationalAlertTimer = setInterval(checkOperationalAlerts, 30 * 60 * 1000);
+operationalAlertTimer.unref();
 
 async function shutdown() {
   clearInterval(handshakeAlertTimer);
+  clearInterval(operationalAlertTimer);
   server.close(async () => {
     await prisma.$disconnect();
     process.exit(0);

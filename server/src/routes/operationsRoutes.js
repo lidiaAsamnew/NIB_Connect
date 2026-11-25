@@ -5,6 +5,7 @@ const { authorizePermission } = require("../middlewares/roleGuard");
 const { validate } = require("../middlewares/validate");
 const { dateRangeFilter } = require("../utils/dateRange");
 const { recordAuditLog } = require("../services/auditService");
+const { createUserManagementRouter } = require("./userManagementRoutes");
 const {
   orderListSchema,
   supplierIdSchema,
@@ -93,6 +94,7 @@ function createOperationsRouter({ prisma, jwtSecret }) {
   const router = express.Router();
   router.use(authenticate({ prisma, jwtSecret }));
   router.use(authorizePermission("operations", "read"));
+  router.use("/users", createUserManagementRouter({ prisma }));
 
   const sensitiveWriteLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -478,6 +480,55 @@ function createOperationsRouter({ prisma, jwtSecret }) {
       return next(error);
     }
   });
+
+  router.post(
+    "/vouchers/expire-overdue",
+    authorizePermission("voucherExpiry", "expire"),
+    async (req, res, next) => {
+      const now = new Date();
+      try {
+        const expiredCount = await prisma.$transaction(async (transaction) => {
+          const overdueVouchers = await transaction.voucher.findMany({
+            where: {
+              status: "ALLOCATED",
+              expiresAt: { lt: now },
+            },
+            select: { id: true },
+          });
+          let updatedCount = 0;
+          for (const voucher of overdueVouchers) {
+            const updated = await transaction.voucher.updateMany({
+              where: {
+                id: voucher.id,
+                status: "ALLOCATED",
+                expiresAt: { lt: now },
+              },
+              data: { status: "EXPIRED" },
+            });
+            if (updated.count !== 1) continue;
+
+            await recordAuditLog(transaction, {
+              actorId: req.user.id,
+              action: "VOUCHER_EXPIRED",
+              entityType: "VOUCHER",
+              entityId: voucher.id,
+              metadata: { reason: "OVERDUE" },
+            });
+            updatedCount += 1;
+          }
+          return updatedCount;
+        });
+
+        return res.json({
+          success: true,
+          message: "Overdue vouchers expired.",
+          data: { expiredCount },
+        });
+      } catch (error) {
+        return next(error);
+      }
+    },
+  );
 
   router.get("/vouchers/:id", validate(supplierIdSchema, "params"), async (req, res, next) => {
     try {

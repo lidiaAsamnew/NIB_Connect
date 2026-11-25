@@ -52,6 +52,16 @@ function createVoucherRouter({ prisma, jwtSecret }) {
             entityId: createdVoucher.id,
             metadata: { recipientUserId: recipient.id, amount },
           });
+          await transaction.notification.create({
+            data: {
+              userId: recipient.id,
+              title: "Voucher allocated",
+              message: `A voucher of ${Number(amount).toFixed(2)} has been allocated to your account.`,
+              type: "VOUCHER_ALLOCATED",
+              link: "/me",
+              relatedEntityId: createdVoucher.id,
+            },
+          });
           return createdVoucher;
         });
 

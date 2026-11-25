@@ -21,6 +21,10 @@ export const operationsService = {
     return data.data;
   },
   listVouchers: (params) => get("/ops/vouchers", params),
+  expireOverdueVouchers: async () => {
+    const { data } = await api.post("/ops/vouchers/expire-overdue");
+    return data.data;
+  },
   listOrders: (params) => get("/ops/orders", params),
   getOrder: (id) => get(`/ops/orders/${id}`),
   getEscrowSummary: () => get("/ops/escrow-summary"),

@@ -34,6 +34,9 @@ const supplierId = randomUUID();
 const voucherId = randomUUID();
 const orderId = randomUUID();
 const productId = randomUUID();
+const overdueVoucherId = randomUUID();
+const futureVoucherId = randomUUID();
+const legacyExpiredVoucherId = randomUUID();
 const users = [operator, owner, supplierUser, {
   id: randomUUID(),
   fullName: "EU Test",
@@ -67,6 +70,8 @@ const startups = [{
   sector: "Manufacturing",
   region: "Addis Ababa",
 }];
+owner.startupProfile = startups[0];
+supplierUser.supplierProfile = supplierProfiles[0];
 const vouchers = [
   {
     id: voucherId,
@@ -103,6 +108,45 @@ const vouchers = [
     status: "REDEEMED_AND_SETTLED",
     createdAt: new Date("2026-11-13T10:00:00.000Z"),
     expiresAt: null,
+    recipient: { id: owner.id, fullName: owner.fullName, startupProfile: startups[0] },
+    startup: startups[0],
+    committedOrder: null,
+  },
+  {
+    id: overdueVoucherId,
+    recipientUserId: owner.id,
+    allocatedByUserId: operator.id,
+    startupId,
+    amount: "15.00",
+    status: "ALLOCATED",
+    createdAt: new Date("2026-11-12T10:00:00.000Z"),
+    expiresAt: new Date("2026-11-13T10:00:00.000Z"),
+    recipient: { id: owner.id, fullName: owner.fullName, startupProfile: startups[0] },
+    startup: startups[0],
+    committedOrder: null,
+  },
+  {
+    id: futureVoucherId,
+    recipientUserId: owner.id,
+    allocatedByUserId: operator.id,
+    startupId,
+    amount: "25.00",
+    status: "ALLOCATED",
+    createdAt: new Date("2026-11-12T10:00:00.000Z"),
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    recipient: { id: owner.id, fullName: owner.fullName, startupProfile: startups[0] },
+    startup: startups[0],
+    committedOrder: null,
+  },
+  {
+    id: legacyExpiredVoucherId,
+    recipientUserId: owner.id,
+    allocatedByUserId: operator.id,
+    startupId,
+    amount: "30.00",
+    status: "ACTIVE",
+    createdAt: new Date("2026-11-12T10:00:00.000Z"),
+    expiresAt: new Date("2026-11-13T10:00:00.000Z"),
     recipient: { id: owner.id, fullName: owner.fullName, startupProfile: startups[0] },
     startup: startups[0],
     committedOrder: null,
@@ -180,6 +224,52 @@ const securityEvents = [{
   user: supplierUser,
 }];
 const auditLogs = [];
+const notifications = [
+  {
+    id: randomUUID(),
+    userId: operator.id,
+    title: "Supplier verification is overdue",
+    message: "A supplier needs review.",
+    type: "SUPPLIER_PENDING_VERIFICATION",
+    isRead: false,
+    link: "/operator/suppliers",
+    relatedEntityId: supplierId,
+    createdAt: new Date(),
+  },
+  {
+    id: randomUUID(),
+    userId: operator.id,
+    title: "Order needs confirmation",
+    message: "An order is waiting for beneficiary confirmation.",
+    type: "ORDER_PENDING_HANDSHAKE_TOO_LONG",
+    isRead: false,
+    link: "/operator/orders",
+    relatedEntityId: orderId,
+    createdAt: new Date(),
+  },
+  {
+    id: randomUUID(),
+    userId: operator.id,
+    title: "Earlier alert",
+    message: "This alert was reviewed.",
+    type: "FAILED_LOGIN_SPIKE",
+    isRead: true,
+    link: "/operator/dashboard",
+    relatedEntityId: null,
+    createdAt: new Date("2026-11-14T10:00:00.000Z"),
+  },
+  {
+    id: randomUUID(),
+    userId: owner.id,
+    title: "Voucher allocated",
+    message: "A voucher is available.",
+    type: "VOUCHER_ALLOCATED",
+    isRead: false,
+    link: "/me",
+    relatedEntityId: voucherId,
+    createdAt: new Date(),
+  },
+];
 
 function matchesWhere(record, where = {}) {
   for (const [key, expected] of Object.entries(where)) {
@@ -188,13 +278,14 @@ function matchesWhere(record, where = {}) {
     if (key === "AND" || key === "OR") continue;
     const actual = record[key];
     if (expected && typeof expected === "object" && !(expected instanceof Date)) {
+      if ("is" in expected && !matchesWhere(actual || {}, expected.is)) return false;
       if ("contains" in expected && !String(actual || "").includes(expected.contains)) return false;
       if ("in" in expected && !expected.in.includes(actual)) return false;
       if ("gte" in expected && !(actual >= expected.gte)) return false;
       if ("lte" in expected && !(actual <= expected.lte)) return false;
       if ("lt" in expected && !(actual < expected.lt)) return false;
       if ("isVerified" in expected && !matchesWhere(actual || {}, expected)) return false;
-      if (!["contains", "in", "gte", "lte", "lt", "isVerified"].some((operator) => operator in expected) &&
+      if (!["is", "contains", "in", "gte", "lte", "lt", "isVerified"].some((operator) => operator in expected) &&
           !matchesWhere(actual || {}, expected)) return false;
     } else if (actual !== expected) {
       return false;
@@ -234,6 +325,10 @@ function model(records) {
       const item = records.find((record) => matchesWhere(record, where));
       return item ? project(item, select) : null;
     },
+    async findFirst({ where = {}, select } = {}) {
+      const item = records.find((record) => matchesWhere(record, where));
+      return item ? project(item, select) : null;
+    },
     async count({ where = {} } = {}) {
       return records.filter((record) => matchesWhere(record, where)).length;
     },
@@ -270,6 +365,9 @@ function model(records) {
     },
     async create({ data }) {
       const record = { id: randomUUID(), ...data, createdAt: new Date() };
+      if (records === auditLogs) {
+        record.actor = users.find((user) => user.id === data.actorId) || null;
+      }
       records.push(record);
       return record;
     },
@@ -278,6 +376,11 @@ function model(records) {
       if (!record) return null;
       Object.assign(record, data);
       return project(record, select);
+    },
+    async updateMany({ where, data }) {
+      const matched = records.filter((record) => matchesWhere(record, where));
+      for (const record of matched) Object.assign(record, data);
+      return { count: matched.length };
     },
   };
 }
@@ -293,6 +396,7 @@ const prisma = {
     { id: randomUUID(), name: "Inactive item", price: 10, stockQuantity: 0, isActive: false, supplier: { id: supplierId, companyName: "Verified Supply Co", isVerified: true } },
   ]),
   order: model(orders),
+  notification: model(notifications),
   escrowTransaction: model(escrowTransactions),
   securityEvent: model(securityEvents),
   auditLog: model(auditLogs),
@@ -346,7 +450,7 @@ test("operator dashboard is role-protected and reports current metrics without s
   assert.equal(result.data.data.startups.total, 1);
   assert.equal(result.data.data.suppliers.total, 1);
   assert.equal(result.data.data.suppliers.unverified, 1);
-  assert.equal(result.data.data.vouchers.allocatedValue, "100.25");
+  assert.equal(result.data.data.vouchers.allocatedValue, "170.25");
   assert.equal(result.data.data.vouchers.committedValue, "20.00");
   assert.equal(result.data.data.vouchers.settledValue, "5.00");
   assert.equal(result.data.data.orders.pendingHandshake, 1);
@@ -373,6 +477,129 @@ test("supplier verification is operator-only, audited, and never returns bank de
     body: { remarks: "x" },
   });
   assert.equal(invalid.response.status, 400);
+});
+
+test("operator can safely deactivate and reactivate users with audit history", async () => {
+  const usersList = await request("/api/ops/users?search=Startup&status=active", {
+    token: tokenFor(operator),
+  });
+  assert.equal(usersList.response.status, 200);
+  assert.equal(usersList.data.data.total, 1);
+  assert.equal(usersList.data.data.items[0].id, owner.id);
+  assert.equal(JSON.stringify(usersList.data).includes("passwordHash"), false);
+
+  const details = await request(`/api/ops/users/${supplierUser.id}`, { token: tokenFor(operator) });
+  assert.equal(details.response.status, 200);
+  assert.equal(details.data.data.supplierProfile.companyName, supplierProfiles[0].companyName);
+  assert.equal(JSON.stringify(details.data).includes("bankAccountNumber"), false);
+  assert.equal(JSON.stringify(details.data).includes("tinNumber"), false);
+
+  const selfDeactivation = await request(`/api/ops/users/${operator.id}/deactivate`, {
+    method: "PATCH",
+    token: tokenFor(operator),
+  });
+  assert.equal(selfDeactivation.response.status, 409);
+
+  const deactivation = await request(`/api/ops/users/${owner.id}/deactivate`, {
+    method: "PATCH",
+    token: tokenFor(operator),
+  });
+  assert.equal(deactivation.response.status, 200);
+  assert.equal(deactivation.data.data.isActive, false);
+  assert.ok(auditLogs.some((log) => log.action === "USER_DEACTIVATED" && log.entityId === owner.id));
+  assert.ok(notifications.some((item) =>
+    item.userId === owner.id && item.type === "ACCOUNT_DEACTIVATED"
+  ));
+
+  const blockedToken = await request("/api/users/me", { token: tokenFor(owner) });
+  assert.equal(blockedToken.response.status, 403);
+  assert.equal(blockedToken.data.message, "Your account is deactivated. Contact NIB operations.");
+  assert.ok(securityEvents.some((event) =>
+    event.eventType === "DEACTIVATED_ACCOUNT_ACCESS" && event.userId === owner.id
+  ));
+
+  const activation = await request(`/api/ops/users/${owner.id}/activate`, {
+    method: "PATCH",
+    token: tokenFor(operator),
+  });
+  assert.equal(activation.response.status, 200);
+  assert.equal(activation.data.data.isActive, true);
+  assert.ok(auditLogs.some((log) => log.action === "USER_ACTIVATED" && log.entityId === owner.id));
+
+  const from = new Date().toISOString().slice(0, 10);
+  const auditQuery = new URLSearchParams({
+    actor: operator.fullName,
+    action: "USER_DEACTIVATED",
+    entityType: "USER",
+    entityId: owner.id,
+    from,
+    to: from,
+  });
+  const auditResult = await request(`/api/audit-logs?${auditQuery}`, { token: tokenFor(operator) });
+  assert.equal(auditResult.response.status, 200);
+  assert.equal(auditResult.data.data.total, 1);
+  assert.equal(auditResult.data.data.items[0].actor.fullName, operator.fullName);
+
+  const denied = await request("/api/ops/users", { token: tokenFor(supplierUser) });
+  assert.equal(denied.response.status, 403);
+});
+
+test("operator can expire only overdue allocated vouchers and audit each change", async () => {
+  const beneficiaryDenied = await request("/api/ops/vouchers/expire-overdue", {
+    method: "POST",
+    token: tokenFor(owner),
+  });
+  assert.equal(beneficiaryDenied.response.status, 403);
+
+  const result = await request("/api/ops/vouchers/expire-overdue", {
+    method: "POST",
+    token: tokenFor(operator),
+  });
+  assert.equal(result.response.status, 200);
+  assert.equal(result.data.data.expiredCount, 1);
+  assert.equal(vouchers.find((voucher) => voucher.id === overdueVoucherId).status, "EXPIRED");
+  assert.equal(vouchers.find((voucher) => voucher.id === futureVoucherId).status, "ALLOCATED");
+  assert.equal(vouchers.find((voucher) => voucher.id === legacyExpiredVoucherId).status, "ACTIVE");
+  assert.equal(auditLogs.filter((log) =>
+    log.action === "VOUCHER_EXPIRED" && log.entityId === overdueVoucherId
+  ).length, 1);
+});
+
+test("notifications are owner-scoped and can be marked read individually or in bulk", async () => {
+  const operatorList = await request("/api/notifications?unreadOnly=true", {
+    token: tokenFor(operator),
+  });
+  assert.equal(operatorList.response.status, 200);
+  assert.equal(operatorList.data.data.total, 2);
+  assert.equal(operatorList.data.data.unreadCount, 2);
+  assert.equal(operatorList.data.data.items.some((item) => item.type === "VOUCHER_ALLOCATED"), false);
+
+  const ownerList = await request("/api/notifications", { token: tokenFor(owner) });
+  assert.equal(ownerList.response.status, 200);
+  assert.equal(ownerList.data.data.total, 2);
+  assert.equal(ownerList.data.data.items.some((item) => item.type === "VOUCHER_ALLOCATED"), true);
+  assert.equal(ownerList.data.data.items.some((item) => item.type === "SUPPLIER_PENDING_VERIFICATION"), false);
+
+  const anotherUsersNotification = operatorList.data.data.items[0].id;
+  const denied = await request(`/api/notifications/${anotherUsersNotification}/read`, {
+    method: "PATCH",
+    token: tokenFor(owner),
+  });
+  assert.equal(denied.response.status, 404);
+
+  const marked = await request(`/api/notifications/${anotherUsersNotification}/read`, {
+    method: "PATCH",
+    token: tokenFor(operator),
+  });
+  assert.equal(marked.response.status, 200);
+  assert.equal(marked.data.data.isRead, true);
+
+  const markAll = await request("/api/notifications/read-all", {
+    method: "PATCH",
+    token: tokenFor(operator),
+  });
+  assert.equal(markAll.response.status, 200);
+  assert.equal(markAll.data.data.updatedCount, 1);
 });
 
 test("voucher and order monitoring validate filters and omit OTP material", async () => {

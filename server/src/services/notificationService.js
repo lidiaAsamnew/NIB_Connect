@@ -1,6 +1,8 @@
 const FAILED_LOGIN_WINDOW_MINUTES = 15;
 const FAILED_LOGIN_ALERT_THRESHOLD = 5;
 const FAILED_LOGIN_ALERT_COOLDOWN_MINUTES = 60;
+const PENDING_SUPPLIER_ALERT_HOURS = 24;
+const VOUCHER_EXPIRY_WARNING_DAYS = 7;
 
 async function createOperatorNotifications(prisma, {
   title,
@@ -92,6 +94,52 @@ async function notifyStaleHandshakeOrders(prisma, thresholdMinutes = 60) {
   return createdCount;
 }
 
+async function notifyPendingSupplierVerifications(prisma) {
+  const cutoff = new Date(Date.now() - PENDING_SUPPLIER_ALERT_HOURS * 60 * 60 * 1000);
+  const suppliers = await prisma.supplierProfile.findMany({
+    where: { isVerified: false, createdAt: { lte: cutoff } },
+    select: { id: true, companyName: true },
+  });
+
+  let createdCount = 0;
+  for (const supplier of suppliers) {
+    const notifications = await createOperatorNotifications(prisma, {
+      title: "Supplier verification is overdue",
+      message: `Supplier ${supplier.companyName} has been waiting for verification for more than ${PENDING_SUPPLIER_ALERT_HOURS} hours.`,
+      type: "SUPPLIER_PENDING_VERIFICATION",
+      link: "/operator/suppliers",
+      relatedEntityId: supplier.id,
+    });
+    createdCount += notifications.length;
+  }
+  return createdCount;
+}
+
+async function notifyExpiringVouchers(prisma) {
+  const now = new Date();
+  const warningEnd = new Date(now.getTime() + VOUCHER_EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000);
+  const vouchers = await prisma.voucher.findMany({
+    where: {
+      status: { in: ["ACTIVE", "ALLOCATED"] },
+      expiresAt: { gte: now, lte: warningEnd },
+    },
+    select: { id: true },
+  });
+
+  let createdCount = 0;
+  for (const voucher of vouchers) {
+    const notifications = await createOperatorNotifications(prisma, {
+      title: "Voucher expiring soon",
+      message: `Voucher ${voucher.id} is due to expire within ${VOUCHER_EXPIRY_WARNING_DAYS} days.`,
+      type: "VOUCHER_EXPIRING_SOON",
+      link: "/operator/vouchers",
+      relatedEntityId: voucher.id,
+    });
+    createdCount += notifications.length;
+  }
+  return createdCount;
+}
+
 async function notifySecurityEvent(prisma, eventType) {
   if (eventType === "LOGIN_FAILED") {
     await notifyFailedLoginSpike(prisma);
@@ -110,6 +158,8 @@ async function notifySecurityEvent(prisma, eventType) {
 
 module.exports = {
   createOperatorNotifications,
+  notifyExpiringVouchers,
+  notifyPendingSupplierVerifications,
   notifySecurityEvent,
   notifyStaleHandshakeOrders,
 };

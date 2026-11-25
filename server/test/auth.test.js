@@ -278,7 +278,8 @@ test("current-user route requires a valid token and returns a safe profile", asy
 
   account.isActive = false;
   const deactivated = await request("/api/users/me", { token: login.data.data.accessToken });
-  assert.equal(deactivated.response.status, 401);
+  assert.equal(deactivated.response.status, 403);
+  assert.equal(deactivated.data.message, "Your account is deactivated. Contact NIB operations.");
   account.isActive = true;
 });
 
@@ -383,6 +384,10 @@ test("voucher access is role-limited and owner history is database-scoped", asyn
     body: { recipientUserId: owner.id, amount: 250.5 },
   });
   assert.equal(created.response.status, 201);
+  assert.equal(
+    notifications.some((item) => item.userId === owner.id && item.type === "VOUCHER_ALLOCATED"),
+    true,
+  );
 
   const invalidAmount = await request("/api/vouchers", {
     method: "POST",
