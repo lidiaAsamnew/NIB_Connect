@@ -28,6 +28,9 @@ const auditQuerySchema = z.object({
 
 const securityEventQuerySchema = z.object({
   eventType: z.string().trim().min(1).max(64).optional(),
+  userId: z.string().uuid().optional(),
+  orderId: z.string().uuid().optional(),
+  ipAddress: z.string().trim().min(1).max(45).optional(),
   from: dateSchema.optional(),
   to: dateSchema.optional(),
   ...paginationFields,

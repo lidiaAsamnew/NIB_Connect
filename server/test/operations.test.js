@@ -157,10 +157,27 @@ const escrowTransactions = [
 const securityEvents = [{
   id: randomUUID(),
   userId: owner.id,
+  orderId,
+  ipAddress: "192.0.2.1",
   eventType: "SUSPICIOUS_OTP_ATTEMPT",
   message: "A suspicious OTP attempt was recorded.",
-  metadata: { otpHash: "must-not-be-returned" },
+  metadata: {
+    otpHash: "must-not-be-returned",
+    orderId,
+    details: { accessToken: "must-also-be-hidden", attemptCount: 5 },
+  },
   createdAt: new Date(),
+  user: owner,
+}, {
+  id: randomUUID(),
+  userId: supplierUser.id,
+  orderId: randomUUID(),
+  ipAddress: "198.51.100.2",
+  eventType: "LOGIN_FAILED",
+  message: "A login attempt failed.",
+  metadata: null,
+  createdAt: new Date(),
+  user: supplierUser,
 }];
 const auditLogs = [];
 
@@ -374,6 +391,42 @@ test("voucher and order monitoring validate filters and omit OTP material", asyn
   assert.equal(orderDetail.data.data.handshakes.length, 1);
   assert.equal(JSON.stringify(orderDetail.data).includes("otpHash"), false);
   assert.equal(JSON.stringify(orderDetail.data).includes("reference"), false);
+});
+
+test("operator security events support scoped filters and redact secret metadata", async () => {
+  const query = new URLSearchParams({
+    eventType: "SUSPICIOUS_OTP_ATTEMPT",
+    userId: owner.id,
+    orderId,
+    ipAddress: "192.0.2.1",
+    page: "1",
+    limit: "10",
+  });
+  const result = await request(`/api/security-events?${query}`, { token: tokenFor(operator) });
+
+  assert.equal(result.response.status, 200);
+  assert.equal(result.data.data.total, 1);
+  assert.equal(result.data.data.items[0].user.fullName, owner.fullName);
+  assert.equal(result.data.data.items[0].orderId, orderId);
+  assert.equal(result.data.data.items[0].ipAddress, "192.0.2.1");
+  assert.equal("otpHash" in result.data.data.items[0].metadata, false);
+  assert.equal("accessToken" in result.data.data.items[0].metadata.details, false);
+  assert.equal(JSON.stringify(result.data).includes("must-not-be-returned"), false);
+  assert.equal(JSON.stringify(result.data).includes("must-also-be-hidden"), false);
+
+  const invalidFilter = await request(`/api/security-events?userId=not-a-uuid`, {
+    token: tokenFor(operator),
+  });
+  assert.equal(invalidFilter.response.status, 400);
+
+  const unmatched = await request(`/api/security-events?ipAddress=203.0.113.8`, {
+    token: tokenFor(operator),
+  });
+  assert.equal(unmatched.response.status, 200);
+  assert.equal(unmatched.data.data.total, 0);
+
+  const forbidden = await request("/api/security-events", { token: tokenFor(owner) });
+  assert.equal(forbidden.response.status, 403);
 });
 
 test("escrow monitoring is read-only and the beneficiary catalog hides unverified products", async () => {

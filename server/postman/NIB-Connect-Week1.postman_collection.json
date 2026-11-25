@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "NIB-Connect Authentication and Week 3 Operations",
-    "description": "Authentication checks and secured NIB operator monitoring APIs.",
+    "name": "NIB-Connect Authentication and Week 4 Security",
+    "description": "Authentication checks, secured NIB operator APIs, and filtered security-event review.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -266,6 +266,28 @@
                 "  pm.response.to.have.status(200);",
                 "  pm.expect(JSON.stringify(pm.response.json())).not.to.include('otpHash');",
                 "  pm.expect(JSON.stringify(pm.response.json())).not.to.include('otpSecureHash');",
+                "});"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Security events (filtered)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{operatorToken}}" }],
+            "url": "{{baseUrl}}/api/security-events?eventType=SUSPICIOUS_OTP_ATTEMPT&page=1&limit=10"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "pm.test('Security events are operator-only and never expose OTP hashes or tokens', function () {",
+                "  pm.response.to.have.status(200);",
+                "  const body = JSON.stringify(pm.response.json());",
+                "  pm.expect(body).not.to.include('otpHash');",
+                "  pm.expect(body).not.to.include('accessToken');",
                 "});"
               ]
             }

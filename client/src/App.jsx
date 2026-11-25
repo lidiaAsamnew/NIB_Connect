@@ -9,6 +9,7 @@ import OperatorEscrowPage from "./pages/operator/OperatorEscrowPage";
 import OperatorOrdersPage from "./pages/operator/OperatorOrdersPage";
 import OperatorSuppliersPage from "./pages/operator/OperatorSuppliersPage";
 import OperatorVouchersPage from "./pages/operator/OperatorVouchersPage";
+import OperatorSecurityEventsPage from "./pages/operator/OperatorSecurityEventsPage";
 
 function LoginPage() {
   const { login, user, isLoading, error } = useAuth();
@@ -184,6 +185,7 @@ function App() {
         <Route path="vouchers" element={<OperatorVouchersPage />} />
         <Route path="orders" element={<OperatorOrdersPage />} />
         <Route path="escrow" element={<OperatorEscrowPage />} />
+        <Route path="security-events" element={<OperatorSecurityEventsPage />} />
       </Route>
       <Route
         path="/operator/audit-logs"

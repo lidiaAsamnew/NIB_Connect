@@ -63,10 +63,20 @@ test("suspicious OTP events notify operators without copying secret metadata", a
   await recordSecurityEvent(prisma, {
     eventType: "SUSPICIOUS_OTP_ATTEMPT",
     message: "Suspicious handshake attempt.",
-    metadata: { orderId: randomUUID() },
+    ipAddress: "192.0.2.1",
+    metadata: {
+      orderId: randomUUID(),
+      otpHash: "must-not-be-stored",
+      details: { accessToken: "must-not-be-stored-either" },
+    },
   });
 
   assert.equal(prisma.securityEvents.length, 1);
+  assert.equal(prisma.securityEvents[0].orderId, prisma.securityEvents[0].metadata.orderId);
+  assert.equal(prisma.securityEvents[0].ipAddress, "192.0.2.1");
+  assert.equal("otpHash" in prisma.securityEvents[0].metadata, false);
+  assert.equal("accessToken" in prisma.securityEvents[0].metadata.details, false);
+  assert.equal(JSON.stringify(prisma.securityEvents[0]).includes("must-not-be-stored"), false);
   assert.equal(prisma.notifications.length, prisma.operators.length);
   assert.ok(prisma.notifications.every((item) => item.type === "SUSPICIOUS_OTP_ATTEMPT"));
 });
