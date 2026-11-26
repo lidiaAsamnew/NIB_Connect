@@ -14,7 +14,10 @@ export default function EuRoutes() {
     <Route
       path="/eu"
       element={
-        <ProtectedRoute allowedRoles={["EU_COMPLIANCE_OFFICER"]}>
+        <ProtectedRoute allowedRoles={[
+          "EU_COMPLIANCE_OFFICER",
+          "NIB_SYSTEM_OPERATOR",
+        ]}>
           <EuLayout />
         </ProtectedRoute>
       }
