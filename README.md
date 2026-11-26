@@ -232,142 +232,140 @@ Deployment and final verification will be completed after the team modules are i
 - The NIB core banking system is represented using a mock ledger for development and testing.
 - SMS, USSD, and real payment integrations are not part of the initial implementation.
 - Some API endpoints and frontend features depend on the completion and integration of the respective team modules.
-- Real frontend authentication integration and logout remain pending. The backend reporting endpoints enforce JWT role authorization.
+- The EU Compliance login page currently accepts only `EU_COMPLIANCE_OFFICER`, although the dashboard route guard and backend compliance routes also permit `NIB_SYSTEM_OPERATOR`. The development login endpoint is available only when `NODE_ENV=development`.
 
-## EU Compliance Reporting (Weeks 2 and 3)
+## EU MEAL Compliance Dashboard
 
-The EU Compliance module provides read-only reporting APIs and a responsive MEAL dashboard for authorized users.
+### 1. Module Overview
 
-### Week 2 — EU reporting APIs
+The EU MEAL Compliance Dashboard is a read-only reporting interface for EU compliance monitoring. It displays summary and aggregated reporting data, with read-only explorers for orders, vouchers, and escrow transactions. The compliance API routes use `GET` requests and do not provide write operations.
 
-The backend reporting service in [server/src/services/reportingService.js](server/src/services/reportingService.js) reads and aggregates compliance data, including weekly allocations, sector and region summaries, and order, voucher, and escrow records. The frontend service layer in [client/src/services/complianceService.js](client/src/services/complianceService.js) calls these APIs, unwraps the common response envelope, and reads pagination metadata for record-list endpoints.
+### 2. Dashboard Pages
 
-All compliance API routes require a Bearer JWT and one of these roles:
+The frontend router defines the dashboard at `/eu`. The following `/compliance/...` paths are redirects to the corresponding dashboard pages:
+
+| Dashboard page | `/compliance` route | Redirect destination |
+|---|---|---|
+| Overview | `/compliance/dashboard` | `/eu/dashboard` |
+| Weekly allocation | `/compliance/weekly-stream` | `/eu/weekly-allocation-stream` |
+| Sector report | `/compliance/sector-report` | `/eu/sector-report` |
+| Region report | `/compliance/region-report` | `/eu/region-report` |
+| Orders | `/compliance/orders` | `/eu/orders` |
+| Vouchers | `/compliance/vouchers` | `/eu/vouchers` |
+| Escrow transactions | `/compliance/escrow` | `/eu/escrow-transactions` |
+
+The overview is also available at `/eu/` and `/eu/dashboard`.
+
+These redirects are registered in [client/src/App.jsx](client/src/App.jsx); dashboard pages and their route guard are in [client/src/routes/euRoutes.jsx](client/src/routes/euRoutes.jsx).
+
+### 3. Dashboard Features
+
+- **Summary cards:** total startups, total suppliers, verified suppliers, allocated/committed/settled voucher value, total orders, cleared orders, pending-handshake orders, and socio-economic savings.
+- **Charts and visual analytics:** orders by status; gross versus cleared values by sector; weekly allocation trend; and gross versus cleared values by region. The weekly allocation page also switches between table and chart views.
+- **Shared filters:** start date, end date, sector, and region. Summary cards are overall totals and are not filtered.
+- **Weekly allocation stream:** groups values by reporting week and market sector. The API applies date filters; the UI applies sector filtering to returned rows. Region does not filter this stream.
+- **Sector and region reports:** aggregate order totals, cleared orders, gross value, savings, and cleared value. The region report also includes startup counts. Sector rows can be sorted by sector, cleared value, or savings.
+- **Read-only explorers:** orders support status, supplier ID, and order ID/waybill search; vouchers support status and startup ID; escrow supports direction and order ID. The explorers also apply shared date/sector/region filters where supported. Lists are paginated; order details are shown in a read-only dialog.
+- **Report states:** shared report components display loading, empty, and error states; report errors have retry controls. The dashboard renders access-denied messages for HTTP 401/403 responses.
+- **CSV downloads:** individual report pages have CSV download buttons. Weekly, sector, and region downloads use the loaded report rows. Order, voucher, and escrow downloads fetch all matching pages before creating the browser download.
+- **Report packages:** the overview provides JSON micro-data and ZIP report package downloads, described below.
+- **Responsive/accessibility support:** the sidebar and filters reflow on smaller screens, charts resize, and wide tables scroll horizontally. Table headers use column scope and charts have accessible text labels.
+
+### 4. Backend API Endpoints
+
+The backend mounts these routes under `/api/compliance`. Every endpoint below is a `GET` request.
+
+| Endpoint | Purpose |
+|---|---|
+| `/api/compliance/summary` | Overall startup, supplier, voucher, order, and impact summary. |
+| `/api/compliance/weekly-allocation-stream` | Weekly allocations grouped by reporting week and sector. |
+| `/api/compliance/sector-report` | Order summary grouped by sector. |
+| `/api/compliance/region-report` | Order summary grouped by region. |
+| `/api/compliance/orders` | Paginated order records. |
+| `/api/compliance/vouchers` | Paginated voucher records. |
+| `/api/compliance/escrow-transactions` | Paginated escrow transaction records. |
+| `/api/compliance/order-status-report` | Order summary grouped by status. |
+| `/api/compliance/voucher-status-report` | Voucher summary grouped by status. |
+| `/api/compliance/escrow-summary` | Escrow summary grouped by direction and status. |
+| `/api/compliance/report-package` | JSON weekly-sector micro-data package. |
+| `/api/compliance/report-package.zip` | ZIP archive of six CSV reports and a manifest. |
+| `/api/compliance/export/orders.csv` | Download all matching order records as CSV. |
+| `/api/compliance/export/vouchers.csv` | Download all matching voucher records as CSV. |
+| `/api/compliance/export/weekly-allocation-stream.csv` | Download the weekly allocation stream as CSV. |
+| `/api/compliance/export/sector-summary.csv` | Download the sector summary as CSV. |
+| `/api/compliance/export/region-summary.csv` | Download the region summary as CSV. |
+| `/api/compliance/export/escrow-transactions.csv` | Download all matching escrow transaction records as CSV. |
+
+Paginated JSON list endpoints return records in `data` and page information in `meta.pagination`. Non-paginated reports return `{ "success": true, "data": ... }`.
+
+The reporting functions in [server/src/services/reportingService.js](server/src/services/reportingService.js) define the available query filters:
+
+- All reports that accept dates use `startDate` and `endDate`.
+- Orders accept `status`, `sector`, `region`, `search`, `startupId`, `supplierId`, `voucherId`, `page`, and `pageSize`, in addition to date filters.
+- Vouchers accept `status`, `startupId`, `allocatedById`, `sector`, and `region`, in addition to date and pagination filters.
+- Escrow transactions accept `direction`, `status`, `orderId`, `voucherId`, `sector`, and `region`, in addition to date and pagination filters.
+- Sector and region reports accept order `status`, `sector`, and `region`, in addition to dates.
+- Weekly allocation applies only date filters. Sector and region query values do not filter the backend weekly report.
+- Order-status report accepts the order report filters. Voucher-status report accepts date and voucher `status` filters. Escrow summary has no query filters.
+
+### 5. Authorization
+
+Each compliance route uses the `authenticate` middleware followed by `authorizeRoles` in [server/src/routes/complianceRoutes.js](server/src/routes/complianceRoutes.js). The backend permits only:
 
 - `EU_COMPLIANCE_OFFICER`
 - `NIB_SYSTEM_OPERATOR`
 
-The reporting endpoints are read-only `GET` requests:
+The dashboard route guard permits the same two roles. The current login page, however, accepts only the EU Compliance Officer role; see Limitations.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/api/compliance/summary` | Dashboard totals and financial impact summary. |
-| GET | `/api/compliance/weekly-allocation-stream` | Weekly totals grouped by reporting week and sector. Applies date filters only. |
-| GET | `/api/compliance/sector-report` | Order totals grouped by sector. |
-| GET | `/api/compliance/region-report` | Order totals grouped by region. |
-| GET | `/api/compliance/vouchers` | Paginated voucher records. |
-| GET | `/api/compliance/orders` | Paginated order records. |
-| GET | `/api/compliance/escrow-transactions` | Paginated escrow transaction records. |
-| GET | `/api/compliance/order-status-report` | Order totals grouped by status. |
-| GET | `/api/compliance/voucher-status-report` | Voucher totals grouped by status. |
-| GET | `/api/compliance/escrow-summary` | Escrow totals grouped by direction and status. |
+### 6. CSV and Report Package Exports
 
-Non-paginated reports return `{ "success": true, "data": ... }`. Paginated reports return records in `data` and pagination details in `meta.pagination`. Date filters use `startDate` and `endDate`; reports that support market filters accept `sector` and `region`.
+The browser report pages generate CSV downloads with the shared utility in [client/src/utils/csvExport.js](client/src/utils/csvExport.js). For the three paginated explorer reports, the UI requests all matching pages before exporting instead of exporting only the currently visible page.
 
-The initial reporting pages provide summary cards, weekly allocation, sector and region reports, and tabular Orders, Vouchers, and Escrow Transactions views. The tabular pages include pagination where the API is paginated.
+The six backend CSV endpoints return `text/csv; charset=utf-8` downloads. Their CSV generation reuses the existing report-package CSV serializer, including cell quoting, UTF-8 BOM, and formula-injection protection. The orders, vouchers, and escrow CSV endpoints fetch all pages of matching records. Query filters are passed to their corresponding reporting functions; page/pageSize are set internally for the complete export.
 
-### Week 3 — EU MEAL dashboard and exports
+The JSON package contains weekly-sector rows and package metadata: `packageType`, ISO `generatedAt`, authenticated role in `generatedBy`, applied date filters, `recordCount`, `data`, and a SHA-256 checksum of `JSON.stringify(data)`. This package applies `startDate` and `endDate` only.
 
-The dashboard is implemented under `/eu` with these seven views. `/eu` and `/eu/dashboard` both open the overview:
+The ZIP package contains six CSV files and `manifest.json`. The manifest includes the generation time, normalized applied filters, a note that weekly allocation uses date filters only, and each CSV file's record count and SHA-256 checksum of its generated CSV bytes. ZIP reports use `sector-report.csv` and `region-report.csv`; standalone endpoints use `sector-summary.csv` and `region-summary.csv`. The ZIP route normalizes only `startDate`, `endDate`, `sector`, and `region`; it does not preserve report-specific filters such as order search/status or voucher/escrow IDs.
 
-| Dashboard page | Frontend route |
-|---|---|
-| Overview and summary cards | `/eu/` or `/eu/dashboard` |
-| Weekly allocation | `/eu/weekly-allocation-stream` |
-| Sector report | `/eu/sector-report` |
-| Region report | `/eu/region-report` |
-| Orders | `/eu/orders` |
-| Vouchers | `/eu/vouchers` |
-| Escrow transactions | `/eu/escrow-transactions` |
+### 7. Testing
 
-The seven assignment URLs are supported as redirects to the existing pages: `/compliance/dashboard`, `/compliance/weekly-stream`, `/compliance/sector-report`, `/compliance/region-report`, `/compliance/orders`, `/compliance/vouchers`, and `/compliance/escrow`.
-
-The overview uses live reporting API data for three Recharts views: orders by status, gross versus cleared values by sector, and weekly allocation. It also displays these summary cards:
-
-1. Total Startups
-2. Total Suppliers
-3. Verified Suppliers
-4. Total Voucher Value Allocated
-5. Total Committed Value
-6. Total Settled Value
-7. Total Orders
-8. Cleared Orders
-9. Pending Handshake Orders
-10. Socio-Economic Savings
-
-Sector and region charts use the shared filters. The Weekly Allocation page provides table and chart views. Shared filters provide start date, end date, sector, and region. The weekly allocation API supports date filters only; its sector filter is applied to the returned rows in the browser, and region does not filter this stream. The overall summary cards are unfiltered.
-
-The sector report includes sorting by cleared value and savings; the region report includes a gross-versus-cleared chart. The order explorer supports status, supplier ID, and order ID/waybill search, pagination, a read-only detail dialog, and date/sector/region filters. The voucher explorer supports status and startup ID filters; the escrow explorer supports direction and order ID filters. These explorers also use the shared date/sector/region filters where supported by their APIs.
-
-CSV exports use the reusable browser utility in [client/src/utils/csvExport.js](client/src/utils/csvExport.js). Weekly Allocation, Sector, and Region export the loaded report rows. Orders, Vouchers, and Escrow Transactions fetch all matching API pages before exporting, rather than exporting only the visible page. CSV output uses headers, UTF-8 encoding, escaping, and formula-injection protection.
-
-### Verifiable report packages
-
-`GET /api/compliance/report-package` returns the JSON weekly-sector micro-data package. Its response is `{ "success": true, "data": { ... } }`; package metadata includes:
-
-- `packageType`: `weekly-sector`
-- `generatedAt`: ISO timestamp
-- `generatedBy`: the authenticated user's role
-- `filters`: the applied weekly date filters
-- `recordCount`: number of rows in the data array
-- `checksum`: SHA-256 of `JSON.stringify(data)`
-- `data`: weekly allocation rows grouped by reporting week and sector
-
-The weekly-sector package applies `startDate` and `endDate`; sector and region are not applied by the weekly allocation service.
-
-`GET /api/compliance/report-package.zip` preserves the ZIP export. It contains six CSV reports and `manifest.json`; the manifest records the generation timestamp, applied filters, the weekly-filter limitation, and each CSV's filename, record count, and SHA-256 checksum.
-
-For example, using the documented local API base and a valid authorized JWT:
-
-```bash
-curl -H "Authorization: Bearer <JWT>" \
-  "http://localhost:5000/api/compliance/report-package?startDate=2025-01-01&endDate=2025-12-31"
-```
-
-To save the ZIP response:
-
-```bash
-curl -H "Authorization: Bearer <JWT>" \
-  "http://localhost:5000/api/compliance/report-package.zip" \
-  --output eu-compliance-report.zip
-```
-
-### Dashboard states, responsiveness, and access
-
-The shared report UI displays loading states, empty states, API errors, retry buttons, and HTTP 401/403 access-denied messages. The dashboard has a top navigation bar and reporting sidebar; its layout and filters reflow on narrow screens, charts resize, and wide tables scroll horizontally. The tables expose column headers to assistive technology, and monetary values are formatted in ETB.
-
-Backend role authorization is enforced on every compliance route. The client API currently documents real sign-in integration as pending; in development it can attach a configured test token. Do not put real credentials or tokens in this README.
-
-The dashboard's visible **EU Compliance Officer** badge is a static display label. It is not dynamically read from an authenticated user session. Real frontend authentication integration and logout remain pending because the client authentication context and session integration are not complete. The static development-token setup must not be treated as a verified user sign-in flow.
-
-### Week 3 evidence
-
-The Student 5 Week 3 evidence is organized in `docs/week3-evidence/`. The required screenshot filenames are:
-
-- `01-overview.png`
-- `02-weekly-stream.png`
-- `03-sector-report.png`
-- `04-region-report.png`
-- `05-order-explorer.png`
-- `06-voucher-explorer.png`
-- `07-escrow-transactions.png`
-- `08-csv-download.png`
-- `09-report-package-json.png`
-
-The README records the expected evidence location and filenames but does not claim that each screenshot demonstrates a successful browser action or HTTP response.
-
-### Tests and API request files
-
-Run the backend tests from `server`:
+Run the backend tests from the `server` directory:
 
 ```bash
 npm test
 ```
 
-Compliance coverage is in:
+Compliance test coverage includes:
 
-- [server/tests/compliance.reporting.test.js](server/tests/compliance.reporting.test.js) — reporting API access and response checks.
-- [server/tests/reportPackageService.test.js](server/tests/reportPackageService.test.js) — ZIP contents, CSV data, pagination, manifest, and checksum checks.
-- [server/tests/compliance.report-package.test.js](server/tests/compliance.report-package.test.js) — JSON package response, checksum, filters, role authorization, and ZIP route checks.
+- [server/tests/compliance.reporting.test.js](server/tests/compliance.reporting.test.js) — reporting API responses, order search, and authentication/authorization.
+- [server/tests/reportPackageService.test.js](server/tests/reportPackageService.test.js) — ZIP contents, CSV data/escaping, pagination, manifest, and checksums.
+- [server/tests/compliance.report-package.test.js](server/tests/compliance.report-package.test.js) — JSON package data, checksum, filters, authorization, and ZIP route.
+- [server/tests/compliance.csv-exports.test.js](server/tests/compliance.csv-exports.test.js) — CSV export authorization, filter forwarding, pagination beyond 100 records, response headers/filenames, and CSV escaping/formula-injection protection.
 
-Compliance request definitions are in [postman/NIB-Connect/Compliance/](postman/NIB-Connect/Compliance/), and the environment file is [postman/NIB-Connect-dev.postman_environment.json](postman/NIB-Connect-dev.postman_environment.json). The environment defines `baseUrl` and an empty `token` variable to be set locally. The repository currently contains these request-definition files, not a single exported Postman collection JSON.
+Compliance Postman request definitions are in [postman/NIB-Connect/Compliance/](postman/NIB-Connect/Compliance/). The environment file is [postman/NIB-Connect-dev.postman_environment.json](postman/NIB-Connect-dev.postman_environment.json); it defines `baseUrl` and an empty `token` variable to configure locally.
+
+### 8. Limitations
+
+- The weekly allocation API and JSON package apply date filters only. The weekly UI filters the returned rows by sector; region has no effect on the weekly stream.
+- The summary cards are not filtered by the shared dashboard filters.
+- The JSON package is weekly-sector micro-data, not a package of all dashboard datasets. The ZIP package is the multi-report package.
+- The development login route is available only when `NODE_ENV=development` and configured development credentials and a JWT secret are provided through the server environment. It issues an `EU_COMPLIANCE_OFFICER` user; the login page rejects other roles even though the dashboard route guard and backend permit `NIB_SYSTEM_OPERATOR`.
+- The NIB core banking system remains represented by a mock ledger. SMS, USSD, and real payment integrations are not part of the current implementation.
+
+### 9. Week 3 Evidence
+
+Expected evidence folder: `docs/week3-evidence/`.
+
+Expected screenshot filenames:
+
+1. `01-overview.png`
+2. `02-weekly-stream.png`
+3. `03-sector-report.png`
+4. `04-region-report.png`
+5. `05-order-explorer.png`
+6. `06-voucher-explorer.png`
+7. `07-escrow-transactions.png`
+8. `08-csv-download.png`
+9. `09-report-package-json.png`
+
+These are expected evidence filenames and do not confirm that the screenshots currently exist.

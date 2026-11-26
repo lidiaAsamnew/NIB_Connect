@@ -11,7 +11,10 @@ import {
   getVouchers,
   getEscrowTransactions,
 } from "../services/reportingService.js";
-import { generateComplianceReportPackage } from "../services/reportPackageService.js";
+import {
+  generateComplianceCsvExport,
+  generateComplianceReportPackage,
+} from "../services/reportPackageService.js";
 
 export async function weeklySectorMicroDataPackage(req, res, next) {
   try {
@@ -53,6 +56,29 @@ export async function downloadReportPackage(req, res, next) {
     next(error);
   }
 }
+
+function handleCsvExport(report) {
+  return async (req, res, next) => {
+    try {
+      const { buffer, filename } = await generateComplianceCsvExport(
+        report,
+        req.query
+      );
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(buffer);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+export const exportOrdersCsv = handleCsvExport("orders");
+export const exportVouchersCsv = handleCsvExport("vouchers");
+export const exportWeeklyAllocationStreamCsv = handleCsvExport("weeklyAllocationStream");
+export const exportSectorSummaryCsv = handleCsvExport("sectorSummary");
+export const exportRegionSummaryCsv = handleCsvExport("regionSummary");
+export const exportEscrowTransactionsCsv = handleCsvExport("escrowTransactions");
 
 function handleReport(service) {
   return async (req, res, next) => {

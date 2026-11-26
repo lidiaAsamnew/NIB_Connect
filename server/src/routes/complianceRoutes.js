@@ -17,6 +17,12 @@ import {
   escrowTransactions,
   weeklySectorMicroDataPackage,
   downloadReportPackage,
+  exportOrdersCsv,
+  exportVouchersCsv,
+  exportWeeklyAllocationStreamCsv,
+  exportSectorSummaryCsv,
+  exportRegionSummaryCsv,
+  exportEscrowTransactionsCsv,
 } from "../controllers/complianceController.js";
 
 const router = Router();
@@ -38,5 +44,19 @@ router.get("/vouchers", ...complianceAccess, vouchers);
 router.get("/escrow-transactions", ...complianceAccess, escrowTransactions);
 router.get("/report-package", ...complianceAccess, weeklySectorMicroDataPackage);
 router.get("/report-package.zip", ...complianceAccess, downloadReportPackage);
+router.get("/export/orders.csv", ...complianceAccess, exportOrdersCsv);
+router.get("/export/vouchers.csv", ...complianceAccess, exportVouchersCsv);
+router.get(
+  "/export/weekly-allocation-stream.csv",
+  ...complianceAccess,
+  exportWeeklyAllocationStreamCsv
+);
+router.get("/export/sector-summary.csv", ...complianceAccess, exportSectorSummaryCsv);
+router.get("/export/region-summary.csv", ...complianceAccess, exportRegionSummaryCsv);
+router.get(
+  "/export/escrow-transactions.csv",
+  ...complianceAccess,
+  exportEscrowTransactionsCsv
+);
 
 export default router;

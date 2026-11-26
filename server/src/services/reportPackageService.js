@@ -101,6 +101,48 @@ const reportDefinitions = [
   },
 ];
 
+const csvExportDefinitions = {
+  orders: {
+    filename: "orders.csv",
+    reportName: "Orders",
+    getReport: getOrders,
+    columns: reportDefinitions[3].columns,
+    paginated: true,
+  },
+  vouchers: {
+    filename: "vouchers.csv",
+    reportName: "Vouchers",
+    getReport: getVouchers,
+    columns: reportDefinitions[4].columns,
+    paginated: true,
+  },
+  weeklyAllocationStream: {
+    filename: "weekly-allocation-stream.csv",
+    reportName: "Weekly allocation stream",
+    getReport: getWeeklyAllocationStream,
+    columns: reportDefinitions[0].columns,
+  },
+  sectorSummary: {
+    filename: "sector-summary.csv",
+    reportName: "Sector summary",
+    getReport: getSectorReport,
+    columns: reportDefinitions[1].columns,
+  },
+  regionSummary: {
+    filename: "region-summary.csv",
+    reportName: "Region summary",
+    getReport: getRegionReport,
+    columns: reportDefinitions[2].columns,
+  },
+  escrowTransactions: {
+    filename: "escrow-transactions.csv",
+    reportName: "Escrow transactions",
+    getReport: getEscrowTransactions,
+    columns: reportDefinitions[5].columns,
+    paginated: true,
+  },
+};
+
 function normalizeFilters(filters = {}) {
   const normalized = {};
 
@@ -157,6 +199,17 @@ function getErrorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function paginationFetchError(reportName, page, error) {
+  const wrappedError = new Error(
+    `${reportName}: failed to fetch page ${page}: ${getErrorMessage(error)}`
+  );
+
+  if (error?.statusCode) wrappedError.statusCode = error.statusCode;
+  if (error?.errors) wrappedError.errors = error.errors;
+
+  return wrappedError;
+}
+
 async function getAllPages(reportName, getReport, filters) {
   let firstPage;
 
@@ -167,9 +220,7 @@ async function getAllPages(reportName, getReport, filters) {
       pageSize: PAGE_SIZE,
     });
   } catch (error) {
-    throw new Error(
-      `${reportName}: failed to fetch page 1: ${getErrorMessage(error)}`
-    );
+    throw paginationFetchError(reportName, 1, error);
   }
 
   const { records, pagination } = firstPage;
@@ -198,9 +249,7 @@ async function getAllPages(reportName, getReport, filters) {
         pageSize: PAGE_SIZE,
       });
     } catch (error) {
-      throw new Error(
-        `${reportName}: failed to fetch page ${page}: ${getErrorMessage(error)}`
-      );
+      throw paginationFetchError(reportName, page, error);
     }
 
     if (
@@ -304,4 +353,21 @@ export async function generateComplianceReportPackage(filters = {}) {
   const filename = `eu-compliance-report-${generatedAt.slice(0, 10)}.zip`;
 
   return { buffer, filename };
+}
+
+export async function generateComplianceCsvExport(report, filters = {}) {
+  const definition = csvExportDefinitions[report];
+
+  if (!definition) {
+    throw new TypeError(`Unsupported compliance CSV report: ${report}`);
+  }
+
+  const rows = definition.paginated
+    ? await getAllPages(definition.reportName, definition.getReport, filters)
+    : await definition.getReport(filters);
+
+  return {
+    buffer: createCsvBuffer(rows, definition.columns),
+    filename: definition.filename,
+  };
 }
