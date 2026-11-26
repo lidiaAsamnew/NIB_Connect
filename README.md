@@ -1,8 +1,8 @@
 # NIB-Connect
 
 NIB-Connect is a B2B supply-chain platform. This repository contains the Week 1
-authentication foundation, Week 2 RBAC and audit services, and the Week 3 NIB
-operations monitoring layer.
+authentication foundation, Week 2 RBAC and audit services, the Week 3–5 NIB
+operations control layer, and ongoing Week 6 security hardening.
 
 ## API setup
 
@@ -156,3 +156,64 @@ reimplement reconciliation or change financial amounts or clearing records.
 
 See [docs/rbac-matrix.md](./docs/rbac-matrix.md) for role policy and scope
 notes.
+
+## NIB Operations and Security Module
+
+This module provides secure authentication and role checks, audit/security
+event recording, and the NIB operator control layer. Public registration is
+limited to startup owners and Tier-1 suppliers. Passwords are bcrypt-hashed;
+protected requests verify the JWT and reload the user's current active status
+from the database. The frontend clears an expired session, redirects to sign-in,
+and shows “Your session has expired. Please login again.”
+
+The server-side permissions are documented in
+[docs/rbac-matrix.md](./docs/rbac-matrix.md), and implemented Week 6 cases are
+recorded in [docs/student4-rbac-test-matrix.md](./docs/student4-rbac-test-matrix.md).
+The security test outcomes and blocked integration cases are in
+[docs/student4-security-test-report.md](./docs/student4-security-test-report.md).
+The operator demo outline is in
+[docs/student4-operator-demo-script.md](./docs/student4-operator-demo-script.md).
+The Week 6 contribution statement is in
+[docs/student4-contribution-statement.md](./docs/student4-contribution-statement.md).
+
+Audit logs cover account registration/login, supplier decisions, voucher
+allocation/expiry, and user activation changes. Security events cover failed
+authentication, rate limits, authorization denials, and deactivated-account
+access. Sensitive credentials and OTP data are not included in logs. Operator
+pages include dashboard, supplier review, user management, voucher/order/escrow
+monitoring, audit history, security events, and notifications. Relevant API
+routes are listed in the endpoint tables above and the Week 4/5 sections.
+
+Security-event creation also writes a `SECURITY_EVENT_CREATED` audit entry
+containing only the event type. Login failures use the `USER_LOGIN_FAILED`
+action. Remaining business-action audit entries depend on their corresponding
+supplier product, order, delivery-confirmation, and clearing APIs being
+integrated.
+
+### Deployment security checklist
+
+- Set `NODE_ENV=production` and use a unique `JWT_SECRET` of at least 32
+  characters; never use values from `.env.example`.
+- Set `CLIENT_ORIGIN` to the exact deployed frontend origin.
+- Keep `.env` files out of version control; `.env.example` contains placeholders.
+- Leave `TRUSTED_PROXY_CIDRS` empty for direct connections. Behind a reverse
+  proxy, set it only to a comma-separated list of actual trusted proxy
+  IPs/CIDRs and block direct untrusted access to the app.
+- Keep Helmet and authentication rate limiting enabled.
+- Configure production database credentials outside source control and apply
+  checked-in migrations with `npx prisma migrate deploy`.
+- No mock OTP endpoint is present in this branch. Recheck any teammate
+  delivery-confirmation implementation before deployment.
+- The production error handler returns a generic response and avoids logging
+  raw exception details.
+- No live backend/frontend deployment URLs are available in this branch.
+
+### Known limitations
+
+Delivery-confirmation OTP throttling, lockout, beneficiary-only authorization,
+and replay prevention await Student 3's implementation. Reconciliation awaits
+its API/contract. Supplier product-management, supplier order-dispatch, and
+full EU reporting test cases require the relevant teammate branches to be
+reviewed and integrated. The Week 6 matrix marks these as blocked rather than
+claiming they passed. Run `npm test` in `server/` and `npm run build` in
+`client/` for the currently integrated code.

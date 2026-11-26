@@ -95,13 +95,14 @@ function createAuthRouter({ prisma, jwtSecret, jwtExpiresIn }) {
         await prisma.$transaction(async (transaction) => {
           await recordAuditLog(transaction, {
             actorId: user ? user.id : null,
-            action: "USER_LOGIN_FAILURE",
+            action: "USER_LOGIN_FAILED",
             entityType: "USER",
             entityId: user ? user.id : null,
             metadata: { reason },
           });
           await recordSecurityEvent(transaction, {
             userId: user ? user.id : null,
+            ipAddress: req.ip,
             eventType: "LOGIN_FAILED",
             message: "A login attempt failed.",
             metadata: { reason },

@@ -4,6 +4,7 @@ const { recordSecurityEvent } = require("../services/securityEventService");
 async function rejectAuthentication(req, res, next, prisma, reason) {
   try {
     await recordSecurityEvent(prisma, {
+      ipAddress: req.ip,
       eventType: "AUTHENTICATION_FAILED",
       message: "An authenticated request could not be verified.",
       metadata: {
@@ -25,6 +26,7 @@ async function rejectDeactivatedUser(req, res, next, prisma, userId) {
   try {
     await recordSecurityEvent(prisma, {
       userId,
+      ipAddress: req.ip,
       eventType: "DEACTIVATED_ACCOUNT_ACCESS",
       message: "A deactivated account attempted to access a protected resource.",
       metadata: { method: req.method, resource: req.baseUrl || "/" },

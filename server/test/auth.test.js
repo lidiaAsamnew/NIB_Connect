@@ -238,8 +238,10 @@ test("login accepts email and phone, returns a token, and uses a generic failure
   assert.equal(invalid.response.status, 401);
   assert.equal(invalid.data.message, "Invalid credentials.");
   assert.equal(auditLogs.some((item) => item.action === "USER_LOGIN_SUCCESS"), true);
-  assert.equal(auditLogs.some((item) => item.action === "USER_LOGIN_FAILURE"), true);
+  assert.equal(auditLogs.some((item) => item.action === "USER_LOGIN_FAILED"), true);
+  assert.equal(auditLogs.some((item) => item.action === "SECURITY_EVENT_CREATED"), true);
   assert.equal(securityEvents.some((item) => item.eventType === "LOGIN_FAILED"), true);
+  assert.ok(securityEvents.find((item) => item.eventType === "LOGIN_FAILED").ipAddress);
   const serializedEvents = JSON.stringify({ auditLogs, securityEvents });
   assert.equal(serializedEvents.includes("unknown@example.com"), false);
   assert.equal(serializedEvents.includes(password), false);
@@ -253,15 +255,22 @@ test("current-user route requires a valid token and returns a safe profile", asy
 
   const missing = await request("/api/users/me");
   assert.equal(missing.response.status, 401);
-  assert.equal(
-    securityEvents.some((item) => item.eventType === "AUTHENTICATION_FAILED"),
-    true,
-  );
+  assert.ok(securityEvents.some((item) =>
+    item.eventType === "AUTHENTICATION_FAILED" && item.ipAddress
+  ));
 
   const invalid = await request("/api/users/me", { token: "not-a-valid-token" });
   assert.equal(invalid.response.status, 401);
 
   const account = [...users.values()][0];
+  const invalidSignatureToken = jwt.sign(
+    { role: account.role, email: account.email },
+    "different-test-secret-that-is-long-enough",
+    { subject: account.id },
+  );
+  const invalidSignature = await request("/api/users/me", { token: invalidSignatureToken });
+  assert.equal(invalidSignature.response.status, 401);
+
   const expiredToken = jwt.sign(
     { role: account.role, email: account.email },
     jwtSecret,
@@ -280,6 +289,18 @@ test("current-user route requires a valid token and returns a safe profile", asy
   const deactivated = await request("/api/users/me", { token: login.data.data.accessToken });
   assert.equal(deactivated.response.status, 403);
   assert.equal(deactivated.data.message, "Your account is deactivated. Contact NIB operations.");
+  assert.ok(securityEvents.some((item) =>
+    item.eventType === "DEACTIVATED_ACCOUNT_ACCESS" &&
+    item.userId === account.id &&
+    item.ipAddress
+  ));
+
+  const inactiveLogin = await request("/api/auth/login", {
+    method: "POST",
+    body: { identifier: account.email, password },
+  });
+  assert.equal(inactiveLogin.response.status, 401);
+  assert.equal(inactiveLogin.data.message, "Invalid credentials.");
   account.isActive = true;
 });
 
@@ -300,6 +321,9 @@ test("role guard blocks a logged-in user with the wrong role", async () => {
     securityEvents.some((item) => item.eventType === "AUTHORIZATION_DENIED"),
     true,
   );
+  assert.ok(securityEvents.some((item) =>
+    item.eventType === "AUTHORIZATION_DENIED" && item.ipAddress
+  ));
 });
 
 function seedUser(role, email, phoneNumber) {
@@ -346,6 +370,10 @@ test("audit and security records are restricted to operators and filters are val
 
   const forbidden = await request("/api/audit-logs", { token: tokenFor(owner) });
   assert.equal(forbidden.response.status, 403);
+  const supplierForbidden = await request("/api/audit-logs", {
+    token: tokenFor(seedUser("TIER1_SUPPLIER", "audit-supplier@example.com", "+251911000019")),
+  });
+  assert.equal(supplierForbidden.response.status, 403);
 
   const invalidFilter = await request("/api/audit-logs?page=0", { token: operatorToken });
   assert.equal(invalidFilter.response.status, 400);
@@ -397,6 +425,20 @@ test("voucher access is role-limited and owner history is database-scoped", asyn
   assert.equal(invalidAmount.response.status, 400);
   assert.equal(vouchers.length, 1);
 
+  const ownerAllocation = await request("/api/vouchers", {
+    method: "POST",
+    token: tokenFor(owner),
+    body: { recipientUserId: owner.id, amount: 125 },
+  });
+  assert.equal(ownerAllocation.response.status, 403);
+
+  const euAllocation = await request("/api/vouchers", {
+    method: "POST",
+    token: tokenFor(euOfficer),
+    body: { recipientUserId: owner.id, amount: 125 },
+  });
+  assert.equal(euAllocation.response.status, 403);
+
   const ownerHistory = await request("/api/vouchers/mine", { token: tokenFor(owner) });
   assert.equal(ownerHistory.response.status, 200);
   assert.equal(ownerHistory.data.data.total, 1);
@@ -432,4 +474,58 @@ test("authentication rate limiting records a security event", async () => {
     securityEvents.some((item) => item.eventType === "AUTH_RATE_LIMITED"),
     true,
   );
+  assert.ok(securityEvents.some((item) =>
+    item.eventType === "AUTH_RATE_LIMITED" && item.ipAddress
+  ));
+});
+
+test("security events use a trusted proxy address only when explicitly configured", async () => {
+  const previousTrustedProxyCidrs = process.env.TRUSTED_PROXY_CIDRS;
+  let directServer;
+  let proxyServer;
+
+  try {
+    delete process.env.TRUSTED_PROXY_CIDRS;
+    directServer = createApp({ prisma, jwtSecret }).listen(0);
+    await new Promise((resolve) => directServer.once("listening", resolve));
+    const directEventCount = securityEvents.length;
+    const directResponse = await fetch(`http://127.0.0.1:${directServer.address().port}/api/users/me`, {
+      headers: { "x-forwarded-for": "203.0.113.42" },
+    });
+    assert.equal(directResponse.status, 401);
+    const directEvent = securityEvents.slice(directEventCount).find((item) =>
+      item.eventType === "AUTHENTICATION_FAILED"
+    );
+    assert.notEqual(directEvent.ipAddress, "203.0.113.42");
+    await new Promise((resolve, reject) => {
+      directServer.close((error) => error ? reject(error) : resolve());
+    });
+    directServer = null;
+
+    process.env.TRUSTED_PROXY_CIDRS = "127.0.0.1/32";
+    proxyServer = createApp({ prisma, jwtSecret }).listen(0);
+    await new Promise((resolve) => proxyServer.once("listening", resolve));
+    const proxyEventCount = securityEvents.length;
+    const proxyResponse = await fetch(`http://127.0.0.1:${proxyServer.address().port}/api/users/me`, {
+      headers: { "x-forwarded-for": "203.0.113.42" },
+    });
+    assert.equal(proxyResponse.status, 401);
+    const proxyEvent = securityEvents.slice(proxyEventCount).find((item) =>
+      item.eventType === "AUTHENTICATION_FAILED"
+    );
+    assert.equal(proxyEvent.ipAddress, "203.0.113.42");
+  } finally {
+    for (const activeServer of [directServer, proxyServer]) {
+      if (activeServer?.listening) {
+        await new Promise((resolve, reject) => {
+          activeServer.close((error) => error ? reject(error) : resolve());
+        });
+      }
+    }
+    if (previousTrustedProxyCidrs === undefined) {
+      delete process.env.TRUSTED_PROXY_CIDRS;
+    } else {
+      process.env.TRUSTED_PROXY_CIDRS = previousTrustedProxyCidrs;
+    }
+  }
 });

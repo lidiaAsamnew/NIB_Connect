@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { useAuth } from "./context/AuthContext";
+import { useAuth } from "./context/auth-context";
 import OperatorLayout from "./layouts/OperatorLayout";
 import AuditLogsPage from "./pages/operator/AuditLogsPage";
 import OperatorDashboardPage from "./pages/operator/OperatorDashboardPage";
@@ -14,7 +14,7 @@ import OperatorUsersPage from "./pages/operator/OperatorUsersPage";
 import OperatorNotificationsPage from "./pages/operator/OperatorNotificationsPage";
 
 function LoginPage() {
-  const { login, user, isLoading, error } = useAuth();
+  const { login, user, isLoading, error, sessionMessage } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [identifier, setIdentifier] = useState("");
@@ -124,9 +124,17 @@ function LoginPage() {
               {!isLoading && <span aria-hidden="true">→</span>}
             </button>
           </form>
-          {(formError || error) && (
+          {sessionMessage && (
+            <p className="error-message" role="alert">{sessionMessage}</p>
+          )}
+          {formError && (
             <p className="error-message" role="alert">
-              {formError || "Session could not be restored. Please sign in again."}
+              {formError}
+            </p>
+          )}
+          {error && !formError && !sessionMessage && (
+            <p className="error-message" role="alert">
+              Session could not be restored. Please sign in again.
             </p>
           )}
           <p className="security-note"><span aria-hidden="true">◆</span> Your connection is protected</p>

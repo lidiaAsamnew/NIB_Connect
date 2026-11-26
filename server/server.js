@@ -16,11 +16,19 @@ if (!Number.isSafeInteger(handshakePendingMinutes) || handshakePendingMinutes < 
   throw new Error("HANDSHAKE_PENDING_ALERT_MINUTES must be a positive whole number.");
 }
 
+function logNotificationError(message, error) {
+  if (process.env.NODE_ENV === "production") {
+    console.error(message);
+  } else {
+    console.error(message, error);
+  }
+}
+
 async function checkPendingHandshakeOrders() {
   try {
     await notifyStaleHandshakeOrders(prisma, handshakePendingMinutes);
   } catch (error) {
-    console.error("Unable to create pending-handshake operator notifications:", error);
+    logNotificationError("Unable to create pending-handshake operator notifications.", error);
   }
 }
 
@@ -31,7 +39,7 @@ async function checkOperationalAlerts() {
       notifyExpiringVouchers(prisma),
     ]);
   } catch (error) {
-    console.error("Unable to create scheduled operator notifications:", error);
+    logNotificationError("Unable to create scheduled operator notifications.", error);
   }
 }
 

@@ -45,6 +45,7 @@ const users = [operator, owner, supplierUser, {
   role: "EU_COMPLIANCE_OFFICER",
   isActive: true,
 }];
+const euOfficer = users[3];
 const supplierProfiles = [{
   id: supplierId,
   userId: supplierUser.id,
@@ -459,6 +460,13 @@ test("operator dashboard is role-protected and reports current metrics without s
 });
 
 test("supplier verification is operator-only, audited, and never returns bank details", async () => {
+  const euDenied = await request(`/api/ops/suppliers/${supplierId}/verify`, {
+    method: "PATCH",
+    token: tokenFor(euOfficer),
+    body: { remarks: "Should not be allowed." },
+  });
+  assert.equal(euDenied.response.status, 403);
+
   const result = await request(`/api/ops/suppliers/${supplierId}/verify`, {
     method: "PATCH",
     token: tokenFor(operator),
@@ -488,11 +496,23 @@ test("operator can safely deactivate and reactivate users with audit history", a
   assert.equal(usersList.data.data.items[0].id, owner.id);
   assert.equal(JSON.stringify(usersList.data).includes("passwordHash"), false);
 
+  const injectionSearch = new URLSearchParams({ search: "' OR 1=1 --" });
+  const injectionResult = await request(`/api/ops/users?${injectionSearch}`, {
+    token: tokenFor(operator),
+  });
+  assert.equal(injectionResult.response.status, 200);
+  assert.equal(injectionResult.data.data.total, 0);
+
   const details = await request(`/api/ops/users/${supplierUser.id}`, { token: tokenFor(operator) });
   assert.equal(details.response.status, 200);
   assert.equal(details.data.data.supplierProfile.companyName, supplierProfiles[0].companyName);
   assert.equal(JSON.stringify(details.data).includes("bankAccountNumber"), false);
   assert.equal(JSON.stringify(details.data).includes("tinNumber"), false);
+
+  const startupAccess = await request(`/api/ops/users/${supplierUser.id}`, {
+    token: tokenFor(owner),
+  });
+  assert.equal(startupAccess.response.status, 403);
 
   const selfDeactivation = await request(`/api/ops/users/${operator.id}/deactivate`, {
     method: "PATCH",

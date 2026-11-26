@@ -27,6 +27,14 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
 
   const app = express();
   app.locals.prisma = prisma;
+  const trustedProxyCidrs = (process.env.TRUSTED_PROXY_CIDRS || "")
+    .split(",")
+    .map((cidr) => cidr.trim())
+    .filter(Boolean);
+  if (trustedProxyCidrs.length > 0) {
+    app.set("trust proxy", trustedProxyCidrs);
+  }
+
   const clientOrigin = process.env.CLIENT_ORIGIN || "http://localhost:5173";
   let parsedClientOrigin;
   try {
@@ -58,6 +66,7 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
     handler: async (req, res, next, options) => {
       try {
         await recordSecurityEvent(prisma, {
+          ipAddress: req.ip,
           eventType: "AUTH_RATE_LIMITED",
           message: "Authentication request rate limit was exceeded.",
           metadata: { method: req.method, path: req.path },
@@ -89,7 +98,11 @@ function createApp({ prisma, jwtSecret = process.env.JWT_SECRET, jwtExpiresIn = 
     if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
       return res.status(400).json({ success: false, message: "Request body must be valid JSON." });
     }
-    console.error("Unhandled API error:", err);
+    if (process.env.NODE_ENV === "production") {
+      console.error("Unhandled API error.");
+    } else {
+      console.error("Unhandled API error:", err);
+    }
     return res.status(500).json({ success: false, message: "An unexpected server error occurred." });
   });
 

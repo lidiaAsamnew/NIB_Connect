@@ -5,6 +5,7 @@ const { recordSecurityEvent } = require("../services/securityEventService");
 function denyAccess(req, res, next, metadata) {
   return recordSecurityEvent(req.app.locals.prisma, {
     userId: req.user ? req.user.id : null,
+    ipAddress: req.ip,
     eventType: "AUTHORIZATION_DENIED",
     message: "An authenticated user attempted an unauthorized action.",
     metadata: {

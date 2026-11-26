@@ -1,4 +1,5 @@
 const { notifySecurityEvent } = require("./notificationService");
+const { recordAuditLog } = require("./auditService");
 const { redactSensitiveMetadata } = require("../utils/securityMetadata");
 
 async function recordSecurityEvent(prisma, {
@@ -19,6 +20,13 @@ async function recordSecurityEvent(prisma, {
   }
   const event = await prisma.securityEvent.create({
     data,
+  });
+  await recordAuditLog(prisma, {
+    actorId: userId,
+    action: "SECURITY_EVENT_CREATED",
+    entityType: "SECURITY_EVENT",
+    entityId: event.id,
+    metadata: { eventType },
   });
   await notifySecurityEvent(prisma, eventType);
   return event;

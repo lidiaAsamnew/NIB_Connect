@@ -15,6 +15,7 @@ function notificationPrisma() {
   ];
   const notifications = [];
   const securityEvents = [];
+  const auditLogs = [];
   const staleOrders = [{ id: randomUUID() }];
   const pendingSuppliers = [{ id: randomUUID(), companyName: "Pending Supply" }];
   const expiringVouchers = [{ id: randomUUID() }];
@@ -22,6 +23,7 @@ function notificationPrisma() {
     operators,
     notifications,
     securityEvents,
+    auditLogs,
     staleOrders,
     supplierProfile: {
       async findMany({ where }) {
@@ -71,6 +73,13 @@ function notificationPrisma() {
         ).length;
       },
     },
+    auditLog: {
+      async create({ data }) {
+        const entry = { id: randomUUID(), ...data, createdAt: new Date() };
+        auditLogs.push(entry);
+        return entry;
+      },
+    },
     order: {
       async findMany() {
         return staleOrders;
@@ -95,9 +104,14 @@ test("suspicious OTP events notify operators without copying secret metadata", a
   assert.equal(prisma.securityEvents.length, 1);
   assert.equal(prisma.securityEvents[0].orderId, prisma.securityEvents[0].metadata.orderId);
   assert.equal(prisma.securityEvents[0].ipAddress, "192.0.2.1");
+  assert.ok(prisma.auditLogs.some((entry) =>
+    entry.action === "SECURITY_EVENT_CREATED" &&
+    entry.entityId === prisma.securityEvents[0].id
+  ));
   assert.equal("otpHash" in prisma.securityEvents[0].metadata, false);
   assert.equal("accessToken" in prisma.securityEvents[0].metadata.details, false);
   assert.equal(JSON.stringify(prisma.securityEvents[0]).includes("must-not-be-stored"), false);
+  assert.equal(JSON.stringify(prisma.auditLogs).includes("must-not-be-stored"), false);
   assert.equal(prisma.notifications.length, prisma.operators.length);
   assert.ok(prisma.notifications.every((item) => item.type === "SUSPICIOUS_OTP_ATTEMPT"));
 });
